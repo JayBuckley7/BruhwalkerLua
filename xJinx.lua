@@ -365,9 +365,9 @@ function Jinx:registerPS()
 end
 
 function Jinx:init()
-  local LuaVersion = 0.1
+  local LuaVersion = 0.2
 	local LuaName = "xJinx"
-	local lua_file_name = "xJinx.lua"
+	local lua_file_name = "xJinx2.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
 	local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua.version.txt"
 
@@ -377,7 +377,7 @@ function Jinx:init()
 			http:get_async(version_url, function(success, web_version)
 				console:log(LuaName .. ".lua Vers: "..LuaVersion)
 				console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
-				if tonumber(web_version) == LuaVersion then
+				if tonumber(web_version) <= LuaVersion then
 					console:log(LuaName .. " Successfully Loaded..")
 				else
 					http:download_file_async(lua_url, lua_file_name, function(success)
