@@ -17,7 +17,7 @@ Please note that this release may contain bugs. Your help in testing and reporti
 ## Information
 - For questions about how stuff works, crashes, or bugs, please DM me or @jay--. I will respond faster that way.
 - The debug/permashow/target selector features are public
-- You can watch a video demonstration of the features here: [Video Link](https://i.gyazo.com/aeaedbb9b749ccc5ef28f6d7d1cad780.mp4)
+- You can watch a video demonstration of the features below
 
 ## Features
 - Q:
