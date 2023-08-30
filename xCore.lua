@@ -248,6 +248,15 @@ local e_key = {
 	Unkillable = 38
  }
 
+ --bw doesnt evaluate there menu cfgs to a number T_T
+ function get_menu_val(cfg)
+	if menu:get_value(cfg) == 1 then
+	  return true
+	else
+	  return false
+	end
+  end
+
  local function class(properties, ...)
     local cls = {}
     cls.__index = cls
@@ -554,7 +563,7 @@ local util = class({
 			cyan = color:new(0, 255, 255, 255),
 			lightCyan = color:new(128, 255, 255, 255),
 			darkCyan = color:new(0, 128, 128, 255),
-			blue = color:new(0, 0, 255, 255,"solidblue"),
+			blue = color:new(0, 0, 255, 255),
 			lightBlue = color:new(128, 128, 255, 255),
 			darkBlue = color:new(0, 0, 128, 255),
 			purple = color:new(143, 0, 255, 255),
@@ -774,7 +783,7 @@ local objects = class({
 			console:debug_log("get tea1m: " .. team .. " color: " .. color)
 			local rift_locale = self.util.rift_locations["Red_Recall"]
 			local pos = vec3:new(rift_locale.x, rift_locale.y, rift_locale.z)
-			baseult_pos = 
+			baseult_pos = pos
 		elseif color == "blue" then
 			baseult_pos = vec3:new(self.util.rift_locations["Blue_Recall"].x, self.util.rift_locations["Blue_Recall"].y, self.util.rift_locations["Blue_Recall"].z)
 		end
@@ -937,7 +946,7 @@ local objects = class({
 	end,
 	get_spell_level = function(self, slot, unit)
 		unit = unit or g_local
-		local level = unit:get_spell_book():get_spell_slot(slot).level or 0
+		local level = spellbook:get_spell_slot(slot).level or 0
 		return level
 	end,
 
@@ -2390,7 +2399,6 @@ local visualizer = class({
 	visualizer_visualize_r = nil,
 	visualizer_show_text = nil,
 
-
 	init = function(self, util, xHelper, math, objects, damagelib)
 		self.Last_cast_time = game.game_time
 		self.xHelper = xHelper
@@ -2422,13 +2430,19 @@ local visualizer = class({
 		local width_offset = 0.055
 		local base_x_offset = 0.43
 		local base_y_offset_ratio = 0.002
-		local bar_width = (screen.x * width_offset)
-		local base_position = enemy:get_hpbar_position()
+		local bar_width = (screen.width * width_offset)
+		local hpbar = enemy.health_bar
+		local base_position = hpbar.pos
 
-		local base_y_offset = screen.y * base_y_offset_ratio
+		local base_y_offset = screen.height * base_y_offset_ratio
 
 		base_position.x = base_position.x - bar_width * base_x_offset
-		base_position.y = base_position.y - bar_height * base_y_offset + yOffset
+		
+		-- console:log(" offset value:".. yOffset .. " Base Position before offset:".. base_position.y)
+		base_position.y = (base_position.y - bar_height * base_y_offset) + (yOffset)
+		local base_y_with_offset = (base_position.y - bar_height * base_y_offset) + (yOffset)
+		-- console:log(" offset value:".. yOffset .. " Base Position after offset:".. base_y_with_offset)
+		
 
 		local function DrawDamageSection(color, damage, remaining_health)
 			local damage_mod = damage / enemy.max_health
@@ -2440,9 +2454,24 @@ local visualizer = class({
 				box_size_x = base_position.x - box_start_x
 			end
 
-			local box_start = vec2:new(box_start_x, base_position.y)
+			local box_start = vec2:new(box_start_x -46 , base_y_with_offset)
 			local box_size = vec2:new(box_size_x, bar_height)
-			g_render:filled_box(box_start, box_size, color)
+
+			-- Rectangle corners coordinates
+			local x1 = box_start.x  -- Bottom-left
+			local y1 = box_start.y
+			local x2 = box_start.x + box_size.x  -- Bottom-right
+			local y2 = box_start.y
+			local x3 = box_start.x  -- Top-left
+			local y3 = box_start.y + box_size.y
+			local x4 = box_start.x + box_size.x  -- Top-right
+			local y4 = box_start.y + box_size.y
+			
+
+			-- check every variable
+			renderer:draw_rect_fill(x1, y1, x2, y2, x3, y3, x4, y4, color.r, color.g, color.b, color.a)
+
+				
 			return remaining_health - damage_mod
 		end
 
@@ -2469,26 +2498,26 @@ local visualizer = class({
 	render_stacked_bars = function(self, enemy, aadmg, qdmg, wdmg, edmg, rdmg)
 		local screen = game.screen_size
 		local height_offset = 0.010
-		local bar_height = (screen.y * height_offset)
+		local bar_height = (screen.height * height_offset)
 		local last_offset_top = -15
 		local last_offset_bottom = 15
 
-		if menu:get_value(self.visualizer_visualize_w) then
+		if get_menu_val(self.visualizer_visualize_w) then
 			self:render_damage_bar(enemy, 0, 0, 0, wdmg, 0, 0, bar_height, last_offset_top)
 			last_offset_top = last_offset_top - 15
 		end
-		if menu:get_value(self.visualizer_visualize_q) then
+		if get_menu_val(self.visualizer_visualize_q) then
 			self:render_damage_bar(enemy, 0, 0, qdmg, 0, 0, 0, bar_height, last_offset_top)
 			last_offset_top = last_offset_top - 15
 		end
-		if menu:get_value(self.visualizer_visualize_autos) then
+		if get_menu_val(self.visualizer_visualize_autos) then
 			self:render_damage_bar(enemy, 0, aadmg, 0, 0, 0, 0, bar_height, 0)
 		end
-		if menu:get_value(self.visualizer_visualize_e) then
+		if get_menu_val(self.visualizer_visualize_e) then
 			self:render_damage_bar(enemy, 0, 0, 0, 0, edmg, 0, bar_height, last_offset_bottom)
 			last_offset_bottom = last_offset_bottom + 15
 		end
-		if menu:get_value(self.visualizer_visualize_r) then
+		if get_menu_val(self.visualizer_visualize_r) then
 			self:render_damage_bar(enemy, 0, 0, 0, 0, 0, rdmg, bar_height, last_offset_bottom)
 			last_offset_bottom = last_offset_bottom + 15
 		end
@@ -2497,34 +2526,34 @@ local visualizer = class({
 	render_combined_bars = function(self, enemy, aadmg, qdmg, wdmg, edmg, rdmg)
 		local screen = game.screen_size
 		local height_offset = 0.010
-		local bar_height = (screen.y * height_offset)
-		if not menu:get_value(self.visualizer_visualize_autos) then
+		local bar_height = (screen.height * height_offset)
+		if not get_menu_val(self.visualizer_visualize_autos) then
 			aadmg = 0
 		end
-		if not menu:get_value(self.visualizer_visualize_q) then
+		if not get_menu_val(self.visualizer_visualize_q) then
 			qdmg = 0
 		end
-		if not menu:get_value(self.visualizer_visualize_w) then
+		if not get_menu_val(self.visualizer_visualize_w) then
 			wdmg = 0
 		end
-		if not menu:get_value(self.visualizer_visualize_e) then
+		if not get_menu_val(self.visualizer_visualize_e) then
 			edmg = 0
 		end
-		if not menu:get_value(self.visualizer_visualize_r) then
+		if not get_menu_val(self.visualizer_visualize_r) then
 			rdmg = 0
 		end
 		local combodmg = aadmg + qdmg + wdmg + edmg + rdmg
 
 
-		if menu:get_value(self.visualizer_split_colors) then
+		if get_menu_val(self.visualizer_split_colors) then
 			self:render_damage_bar(enemy, 0, aadmg, qdmg, wdmg, edmg, rdmg, bar_height, 0)
 		else
-			self:render_damage_bar(enemy, combodmg, aadmg, qdmg, wdmg, edmg, rdmg, bar_height, 0)
+			self:render_damage_bar(enemy, combodmg, 0, 0, 0, 0, 0, bar_height, 0)
 		end
 	end,
 	display_killable_text = function(self, enemy, nmehp, aadmg, qdmg, wdmg, edmg, rdmg)
 		local pos = enemy.origin
-		if pos:to_screen() ~= nil then
+		if pos.is_on_screen then
 			local spells_text = ""
 			local killable_text = ""
 
@@ -2541,32 +2570,32 @@ local visualizer = class({
 				killable_text = "R Kill"
 			elseif nmehp <= qdmg + wdmg + edmg + rdmg then
 				killable_text = "Combo Kill"
-				if menu:get_value(self.visualizer_visualize_q) then
+				if get_menu_val(self.visualizer_visualize_q) then
 					spells_text = "Q"
 				end
-				if menu:get_value(self.visualizer_visualize_w) then
+				if get_menu_val(self.visualizer_visualize_w) then
 					spells_text = spells_text .. (spells_text ~= "" and " + " or "") .. "W"
 				end
-				if menu:get_value(self.visualizer_visualize_e) then
+				if get_menu_val(self.visualizer_visualize_e) then
 					spells_text = spells_text .. (spells_text ~= "" and " + " or "") .. "E"
 				end
-				if menu:get_value(self.visualizer_visualize_r) then
+				if get_menu_val(self.visualizer_visualize_r) then
 					spells_text = spells_text .. (spells_text ~= "" and " + " or "") .. "R"
 				end
 			else
-				if self.objects:can_cast(e_spell_slot.q) and menu:get_value(self.visualizer_visualize_q) then
+				if self.objects:can_cast(e_spell_slot.q) and get_menu_val(self.visualizer_visualize_q) then
 					autos_to_kill = std_math.ceil((nmehp - qdmg) / aadmg)
 					spells_text = "Q"
 				end
-				if self.objects:can_cast(e_spell_slot.w) and menu:get_value(self.visualizer_visualize_w) then
+				if self.objects:can_cast(e_spell_slot.w) and get_menu_val(self.visualizer_visualize_w) then
 					autos_to_kill = std_math.ceil((nmehp - wdmg) / aadmg)
 					spells_text = (spells_text ~= "" and " + " or "") .. "W"
 				end
-				if self.objects:can_cast(e_spell_slot.e) and menu:get_value(self.visualizer_visualize_e) then
+				if self.objects:can_cast(e_spell_slot.e) and get_menu_val(self.visualizer_visualize_e) then
 					autos_to_kill = std_math.ceil((nmehp - edmg) / aadmg)
 					spells_text = (spells_text ~= "" and " + " or "") .. "E"
 				end
-				if self.objects:can_cast(e_spell_slot.r) and menu:get_value(self.visualizer_visualize_r) then
+				if self.objects:can_cast(e_spell_slot.r) and get_menu_val(self.visualizer_visualize_r) then
 					autos_to_kill = std_math.ceil((nmehp - rdmg) / aadmg)
 					spells_text = (spells_text ~= "" and " + " or "") .. "R"
 				end
@@ -2575,8 +2604,11 @@ local visualizer = class({
 			end
 			if killable_text ~= "" then
 				killable_text = killable_text:gsub("^%s*+", "")
-				local killable_pos = vec2:new(pos:to_screen().x, pos:to_screen().y - 80)
-				g_render:text(killable_pos, color:new(255, 255, 255), killable_text, Font, 30)
+				local clr = color:new(255, 255, 255, 255)
+				local size = 30
+
+				local killable_pos = game:world_to_screen_2(pos.x-150, pos.y - 80, pos.z)
+				renderer:draw_text_size(killable_pos.x, killable_pos.y, killable_text, size, clr.r, clr.g, clr.b, clr.a)
 			end
 		end
 	end,
@@ -2606,19 +2638,18 @@ local visualizer = class({
 	end,
 	Visualize_damage = function(self, enemy)
 		local nmehp = enemy.health
-		local aadmg, qdmg, wdmg, edmg, rdmg = 1,1,1,1,1 --- self:get_damage_array(enemy) -- fix this please
+		local aadmg, qdmg, wdmg, edmg, rdmg = self:get_damage_array(enemy)
 
-		-- combined bars
-		
-		if menu:get_value(self.visualizer_show_combined_bars) then
+		-- combined bars		
+		if get_menu_val(self.visualizer_show_combined_bars) then
 			self:render_combined_bars(enemy, aadmg, qdmg, wdmg, edmg, rdmg)
 		end
 		-- stacked bars
-		if menu:get_value(self.visualizer_show_stacked_bars) then
+		if get_menu_val(self.visualizer_show_stacked_bars) then
 			self:render_stacked_bars(enemy, aadmg, qdmg, wdmg, edmg, rdmg)
 		end
-		-- killable text
-		if menu:get_value(self.visualizer_show_text) then
+		-- -- killable text
+		if get_menu_val(self.visualizer_show_text) then
 			self:display_killable_text(enemy, nmehp, self.damagelib:calc_aa_dmg(g_local, enemy), qdmg, wdmg, edmg, rdmg)
 		end
 	end,
@@ -2663,14 +2694,14 @@ local visualizer = class({
 		end
 	end,
 	draw = function(self)
-		if menu:get_value(self.checkboxVisualDmg) == 1 then
+		if get_menu_val(self.checkboxVisualDmg) then
 			for i, enemy in pairs(game.players) do
 				if enemy and enemy.is_enemy and self.xHelper:is_alive(enemy) and enemy.is_visible and g_local:distance_to(enemy.origin) < 3000 then
-					-- self:Visualize_damage(enemy)
+					self:Visualize_damage(enemy)
 				end
 			end
 		end
-		if menu:get_value(self.checkboxMinionDmg) then
+		if get_menu_val(self.checkboxMinionDmg) then
 			-- self:drawMins()
 		end
 	end,
@@ -2758,6 +2789,8 @@ local debug = class({
 		renderer:draw_text_size(pos.x, Res.y - 260, self.LastMsg, 30, 255, 255, 255, 255)
 		renderer:draw_text_size(pos1.x, Res.y - 290, self.LastMsg1, 30, 255, 255, 255, 255)
 		renderer:draw_text_size(pos2.x, Res.y - 320, self.LastMsg2, 30, 255, 255, 255, 255)
+		-- console:log("x: " .. pos2.x .. " y:" .. Res.y)
+
 	end
 
 })
