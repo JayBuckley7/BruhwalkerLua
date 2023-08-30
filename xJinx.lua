@@ -7,6 +7,9 @@ end
 
 require("PKDamageLib")
 
+g_local = game.local_player
+REQUIRE_SLOTTED_RESTART = false
+
 if game.local_player.champ_name ~= "Jinx" then
     return
 end
@@ -23,13 +26,7 @@ e_spell_slot = {
 	r = SLOT_R
 	}
 
- g_local = game.local_player
 
-local Jinx_VERSION = "1.2.0"
-local Jinx_LUA_NAME = "xJinx.lua"
-local Jinx_REPO_BASE_URL = "https://raw.githubusercontent.com/xAIO-Slotted/xJinx/main/"
-local Jinx_REPO_SCRIPT_PATH = Jinx_REPO_BASE_URL .. Jinx_LUA_NAME
-REQUIRE_SLOTTED_RESTART = false
 
 local name = "xAIO - Jinx"
 
@@ -362,36 +359,38 @@ function Jinx:registerPS()
   core.permashow:set_title(name)
   console:log("registering permashow q farm")
   core.permashow:register("farm", "farm", "A", true, self.q_clear_aoe)
-  core.permashow:register("Fast W", "Fast W", "control")
+  core.permashow:register("Fast W", "Fast W", "shift")
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
 end
 
 function Jinx:init()
-    local LuaVersion = 99
+  local LuaVersion = 0.1
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
-	local lua_url = "https://raw.githubusercontent.com/TheShaunyboi/BruhWalkerEncrypted/main/ProPlay-Syndra.lua"
-	local version_url = "https://raw.githubusercontent.com/TheShaunyboi/BruhWalkerEncrypted/main/ProPlay-Syndra.lua.version.txt"
-    -- do
-	-- 	local function AutoUpdate()
-	-- 		http:get_async(version_url, function(success, web_version)
-	-- 			console:log(LuaName .. ".lua Vers: "..LuaVersion)
-	-- 			console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
-	-- 			if tonumber(web_version) == LuaVersion then
-	-- 				console:log(LuaName .. " Successfully Loaded..")
-	-- 			else
-	-- 				http:download_file_async(lua_url, lua_file_name, function(success)
-	-- 					if success then
-	-- 						console:log(LuaName .. " Update available..")
-	-- 						console:log("Please Reload via F5!..")
-	-- 					end
-	-- 				end)
-	-- 			end
-	-- 		end)
-	-- 	end
-	-- 	-- AutoUpdate()
-	-- end
+	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
+	local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua.version.txt"
+
+
+    do
+		local function AutoUpdate()
+			http:get_async(version_url, function(success, web_version)
+				console:log(LuaName .. ".lua Vers: "..LuaVersion)
+				console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
+				if tonumber(web_version) == LuaVersion then
+					console:log(LuaName .. " Successfully Loaded..")
+				else
+					http:download_file_async(lua_url, lua_file_name, function(success)
+						if success then
+							console:log(LuaName .. " Update available..")
+							console:log("Please Reload via F5!..")
+						end
+					end)
+				end
+			end)
+		end
+		AutoUpdate()
+	end
 
     self.Q = { range = 800 }
     self.W = { range = 925 }
@@ -435,14 +434,20 @@ end
 
 
 function Jinx:ready(spell)
+  if 1==1 then return spellbook:can_cast(spell) end
   local slot = spellbook:get_spell_slot(spell)
-
+  -- Prints("slot: " .. tostring(slot.level), 2)
   if slot.level == 0 then
+    Prints(spell .. " lvl not ready", 2)
     return false
   end
+
   if slot.cooldown > 0 then
+    Prints(spell .. " not ready for: " .. slot.cooldown , 2)
     return false
   end
+
+  Prints(spell .. " ready", 2)
   return true
 end
 
@@ -771,7 +776,7 @@ end
   if not in_Q_range then return false end
 
   local mode = combo:get_mode()
-  local full_combo = game:is_key_down(core.e_key.control)
+  local full_combo = game:is_key_down(core.e_key.shift)
   local should_w_in_aa_range = get_menu_val(self.w_combo_not_in_range)
   if mode == Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
 
@@ -794,8 +799,8 @@ function Jinx:get_w_hitChance_setting()
   -- if we're in harass mode, use the harass hitChance setting
   if mode == Harass_key then
     chance = menu:get_value(self.w_harass_hitChance)
-    -- if we're in combo mode and we're holding control key, force w to go off
-  elseif game:is_key_down(core.e_key.control) then
+    -- if we're in combo mode and we're holding shift key, force w to go off
+  elseif game:is_key_down(core.e_key.shift) then
     chance = 0
   end
   return chance
@@ -842,20 +847,21 @@ end
  end
 
  function Jinx:w_combo_harass_logic()
+  Prints("w combo/harass logic", 4)
   local target = self:Get_target()
   if target == nil then return false end
 
   if self:should_skip_w_cast() then return false end
 
-  local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
- 
-  if wHit and wHit.hitChance*100 >= self:get_w_hitChance_setting() then
-    -- Prints("w cast: " ..  tostring(wHit.hitChance), 2)
-    Prints("combo: casting w hitChance is " .. wHit.hitChance*100, 2)
-    local castPos = wHit.castPosition
+  Prints("get chance" , 2)
+  local chancereq = self:get_w_hitChance_setting()
 
-    spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
-    
+  local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
+  if wHit and wHit.hitChance*100 >= chancereq then
+    Prints("combo: casting w hitChance is " .. wHit.hitChance*100)
+    local castPos = wHit.castPosition
+    spellbook:cast_spell(SLOT_W, 0, castPos.x, castPos.y, castPos.z)
+    Last_cast_time = game.game_time
     return true
   end
 
@@ -864,18 +870,19 @@ end
 end
 
 function Jinx:w_ks_logic()
+  Prints("w ks logic", 4)
   local enemies = core.objects:get_enemy_champs(Data['W'].range)
 
   local sorted_targets = self:get_sorted_w_targets(enemies)     -- adjust delay as needed
   local ks_w_hitChance = 65
 
   for _, target_info in ipairs(sorted_targets) do
-    -- Prints("target: " .. tostring(target_info.target.object_name) .. " hp: " .. tostring(target_info.hp) .. " dmg: " .. tostring(target_info.damage) .. " hitChance: " .. tostring(target_info.hitChance), 3)
-    if target_info.damage > target_info.hp + 15 and target_info.hp > 1 and target_info.hitChance > ks_w_hitChance then
+    -- Prints("target: " .. tostring(target_info.target.object_name) .. " hp: " .. tostring(target_info.hp) .. " dmg: " .. tostring(target_info.damage) .. " hitChance: " .. tostring(target_info.hitChance), 2)
+    if target_info.damage > target_info.hp + 15 and target_info.hp > 1 and target_info.hitChance*100 > ks_w_hitChance then
 
       local wHit =  _G.DreamPred.GetPrediction(target_info.target, Data['W'], g_local)
       if wHit and wHit.hitChance*100 >= ks_w_hitChance  then
-        Prints("KS: casting w hitChance is " .. tostring(wHit.hitChance*100), 2)
+        Prints("KS: casting w hitChance is " .. tostring(wHit.hitChance*100), 4)
         local castPos = wHit.castPosition
         spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
         Last_cast_time = game.game_time
@@ -907,7 +914,7 @@ function Jinx:spell_w()
   end
   -- -- Prints("should_w_Jungle_clear: " .. tostring(should_w_Jungle_clear) .. "can weave: " .. tostring(can_weave), 1)
 
-  -- this is siabled on my bruh walker build 
+  -- this is diabled on my bruh walker build 
   -- if should_w_Jungle_clear and can_weave and fast_clear_w_Logic() then return true end
 
   return false
@@ -1060,7 +1067,9 @@ function Jinx:get_semi_auto_r_target(sorted_targets)
 end
 
 function Jinx:try_semi_auto_r(sorted_targets)
-  local semi_auto_r_target = get_semi_auto_r_target(sorted_targets)
+  Prints("r spell manual ", 2)
+
+  local semi_auto_r_target = self:get_semi_auto_r_target(sorted_targets)
   if semi_auto_r_target then
     local rHit =  _G.DreamPred.GetPrediction(semi_auto_r_target, Data['R'], g_local)
     if rHit then 
@@ -1131,13 +1140,13 @@ function Jinx:spell_r()
   Prints("checking should r ks",4)
 
   -- r ks logic
-  -- if get_menu_val(self.r_KS) and self:should_r_ks(sorted_targets) then return true end
+  if get_menu_val(self.r_KS) and self:should_r_ks(sorted_targets) then return true end
 
   -- -- semi auto r logic
-  -- if should_SemiManualR and try_semi_auto_r(sorted_targets) then return true end
+  if should_SemiManualR and self:try_semi_auto_r(sorted_targets) then return true end
   
   Prints("should semi auto: ", 4)
-  if should_r_multihit and Jinx:try_r_multihit(sorted_targets) then return true end
+  if should_r_multihit and self:try_r_multihit(sorted_targets) then return true end
   return false
 end
 
@@ -1425,7 +1434,7 @@ function Jinx:baseult()
 end
 
 function Jinx:chainCC()
-  Prints("tick...", 4)
+  Prints("chainCC in...", 4)
 
   if game.game_time - Last_cast_time <= 0.05 then return end
   Prints("tick after last cast check", 4)
@@ -1784,6 +1793,7 @@ end
 
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
 function Jinx:on_tick_always()
+    Prints("tick...", 4)
     if not get_menu_val(self.Jinx_enabled) then return end
     if self:ready(e_spell_slot.q) then
         self:spell_q()
