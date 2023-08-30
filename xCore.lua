@@ -47,73 +47,6 @@ local g_local = game.local_player
 
 -- --------------------------------------------------------------------------------
 
--- local function fetch_remote_version_number()
--- 	local command = "curl -s -H 'Cache-Control: no-cache, no-store, must-revalidate' " .. XCORE_REPO_SCRIPT_PATH
-
--- 	local handle = io.popen(command)
--- 	if not handle then
--- 		print("Failed to fetch the remote version number.")
--- 		return nil
--- 	end
--- 	local content = handle:read("*a")
--- 	handle:close()
-
--- 	if content == "" then
--- 		print("Failed to fetch the remote version number.")
--- 		return nil
--- 	end
-
--- 	local remote_version = content:match("VERSION%s*=%s*\"(%d+%.%d+%.%d+)\"")
-
--- 	return remote_version
--- end
-
--- local function replace_current_file_with_latest_version(latest_version_script)
--- 	local resources_path = cheat:get_resource_path()
--- 	local current_file_path = resources_path:gsub("resources$", "lua\\lib\\" .. XCORE_LUA_NAME)
--- 	print("got file path:" .. tostring(current_file_path))
--- 	local file, errorMessage = io.open(current_file_path, "w")
-
--- 	if not file then
--- 		print("Failed to open the current file for writing. Error: " .. errorMessage)
--- 		return false
--- 	end
-
--- 	file:write(latest_version_script)
--- 	file:close()
-
--- 	return true
--- end
-
--- local function check_for_update(x)
--- 	if true then return false end
--- 	local remote_version = fetch_remote_version_number()
--- 	x.debug:Print("xCore: local version: " .. XCORE_VERSION .. " remote version: " .. remote_version, 1)
-
--- 	if remote_version and remote_version > XCORE_VERSION then
--- 		local command = "curl -s " .. XCORE_REPO_SCRIPT_PATH
--- 		local handle = io.popen(command)
--- 		if not handle then
--- 			print("Failed to fetch the remote version number.")
--- 			return nil
--- 		end
--- 		local latest_version_script = handle:read("*a")
--- 		handle:close()
-
--- 		if latest_version_script then
--- 			if replace_current_file_with_latest_version(latest_version_script) then
--- 				x.debug:Print("Please click reload lua ", 0)
--- 				x.debug:Print("Successfully updated " .. XCORE_LUA_NAME .. " to version " .. remote_version .. ".", 0)
--- 				x.debug:Print("Please click reload lua  ", 0)
--- 				-- You may need to restart the program to use the updated script
--- 			else
--- 				x.debug:Print("Failed to update " .. XCORE_LUA_NAME .. ".", 0)
--- 			end
--- 		end
--- 	else
--- 		x.debug:Print("You are running the latest version of " .. XCORE_LUA_NAME .. ".", 0)
--- 	end
--- end
 local Res = {x = game.screen_size.width, y = game.screen_size.height}
 
 
@@ -779,15 +712,15 @@ local objects = class({
 
 		local baseult_pos = nil
 		if color == "red" then
-			console:log("get tea1m: " .. team .. " color: " .. color)
-			console:debug_log("get tea1m: " .. team .. " color: " .. color)
+			-- console:log("get tea1m: " .. team .. " color: " .. color)
+			-- console:debug_log("get tea1m: " .. team .. " color: " .. color)
 			local rift_locale = self.util.rift_locations["Red_Recall"]
 			local pos = vec3:new(rift_locale.x, rift_locale.y, rift_locale.z)
 			baseult_pos = pos
 		elseif color == "blue" then
 			baseult_pos = vec3:new(self.util.rift_locations["Blue_Recall"].x, self.util.rift_locations["Blue_Recall"].y, self.util.rift_locations["Blue_Recall"].z)
 		end
-		console:log("baseult_pos: " .. tostring(baseult_pos.x) .. " " .. tostring(baseult_pos.y) .. " " .. tostring(baseult_pos.z))
+		-- console:log("baseult_pos: " .. tostring(baseult_pos.x) .. " " .. tostring(baseult_pos.y) .. " " .. tostring(baseult_pos.z))
 		return baseult_pos
 	end,
 	get_bounding_radius = function(self, unit)
@@ -2822,6 +2755,31 @@ local x = class({
 
 
 	init = function(self)
+		local LuaVersion = 0.2
+		local LuaName = "xCore"
+		local lua_file_name = "xCore.lua"
+		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
+		local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua.version.txt"
+	
+		do
+			local function AutoUpdate()
+				http:get_async(version_url, function(success, web_version)
+					console:log(LuaName .. ".lua Vers: "..LuaVersion)
+					console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
+					if tonumber(web_version) <= LuaVersion then
+						console:log(LuaName .. " Successfully Loaded..")
+					else
+						http:download_file_async(lua_url, lua_file_name, function(success)
+							if success then
+								console:log(LuaName .. " Update available..")
+								console:log("Please Reload via F5!..")
+							end
+						end)
+					end
+				end)
+			end
+			AutoUpdate()
+		end
 		print("=-=--=-=-=-=-==-=--==-=-=--=-==--==-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-")
 		self.util = util:new()
 		self.Colors = util.Colors
