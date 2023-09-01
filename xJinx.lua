@@ -185,6 +185,36 @@ local Data = {
 end
 
 
+function Vec3_Normalize(v)
+  local dx = v.x
+  local dy = v.y
+  local dz = v.z
+  local length = math.sqrt(dx * dx + dy * dy + dz * dz)
+  
+  -- Check if length is zero to avoid division by zero
+  if length == 0 then
+      return {
+          x = 0,
+          y = 0,
+          z = 0
+      }
+  end
+  
+  return {
+      x = dx / length,
+      y = dy / length,
+      z = dz / length
+  }
+end
+
+function Vec3_Subtract(v1, v2)
+  return {
+      x = v1.x - v2.x,
+      y = v1.y - v2.y,
+      z = v1.z - v2.z
+  }
+end
+
   function Vec3_Extend(v1, v2, dist)
     Prints("v1.x " .. tostring(v1.x) .. " v1.y " .. tostring(v1.y) .. " v1.z " .. tostring(v1.z), 4)
     Prints("v2.x " .. tostring(v2.x) .. " v2.y " .. tostring(v2.y) .. " v2.z " .. tostring(v2.z), 4)
@@ -364,10 +394,104 @@ function Jinx:registerPS()
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
 end
 
+dancing = false
+state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
+top, mid, bot = nil, nil, nil
+
+function dance()
+  -- Prints("state: " .. state, 2)
+  -- Prints("dancing: " .. tostring(dancing), 2)
+  --   if not dancing then
+  --     Prints("dance ONE set!", 2)
+  --       -- Initialize positions if they haven't been set
+  --       mid = g_local.origin
+  --       top = Vec3_Rotate(mid, {x = mid.x, y = mid.y, z = mid.z + 100}, 90)
+  --       bot = Vec3_Extend(mid, top, -100)
+  --       dancing = true
+  --   end
+
+  --   local currentPos = g_local.origin
+
+  --   if state == "atMiddle" and Get_distance(currentPos, mid) < 5 then
+  --       Prints("move to top from middle", 2)
+  --       -- move to top from middle
+  --       orbwalker:move_to(top.x, top.y, top.z)
+  --       state = "atTop"
+  --   elseif state == "atTop" and Get_distance(currentPos, top) < 5 then
+  --       Prints("move to bottom from top", 2)
+  --       -- move to bottom from top
+  --       orbwalker:move_to(bot.x, bot.y, bot.z)
+  --       state = "atBottom"
+  --   elseif state == "atBottom" and Get_distance(currentPos, bot) < 5 then
+  --       Prints("move to middle from bottom", 2)
+  --       -- move to middle from bottom
+  --       orbwalker:move_to(top.x, top.y, top.z)
+  --       state = "atMiddle"
+  --   end
+end
+
+function Jinx:dance_away()
+  self:position_optimally()
+  --enemy = get target
+  -- local enemy = self:Get_target()
+  -- if enemy == nil then return end
+  -- Prints("dancing away from: " .. enemy.object_name, 2)
+
+  -- local extendedPoint = Vec3_Extend(enemy.origin, g_local.origin, enemy.attack_range + g_local.bounding_radius + 100)
+  -- top = extendedPoint
+  -- bot = extendedPoint
+  -- mid = extendedPoint
+  -- dancing = true
+
+  -- -- Move to the extended point
+  -- orbwalker:move_to(extendedPoint.x, extendedPoint.y, extendedPoint.z)
+end
+
+function Jinx:position_optimally()
+  local enemy = self:Get_target()
+  if enemy == nil then return end
+  Prints("Optimal positioning from: " .. enemy.object_name, 2)
+
+  --lets figure out her bb range by extending from us to her - her bounding radius
+  local enemy_actual = Vec3_Extend(g_local.origin, enemy.origin, Get_distance(g_local.origin, enemy.origin)-enemy.bounding_radius)
+  local me_actual = Vec3_Extend(enemy.origin, g_local.origin, Get_distance(g_local.origin, enemy.origin)-g_local.bounding_radius)
+
+  -- extend between enemy and me actual by enemy attack range
+  local enemy_influence = Vec3_Extend(enemy_actual, me_actual, enemy.attack_range)
+
+  -- 2. Calculate the desired distance from the enemy
+  local safety_margin = 0
+
+  -- saftey half the difrence of her range vs the distance between me_actual and her attack_range
+  safety_margin = Get_distance(me_actual, enemy_influence) / 2
+
+
+  -- keep out of enemy range + bounding 
+
+  local desired_distance = enemy.attack_range + safety_margin
+
+  -- extend from enemy to jinx by desired distance
+  local move_to_point = Vec3_Extend(enemy.origin, g_local.origin, desired_distance)
+
+  
+  -- Save the final point and set the dancing variable to true
+  top = move_to_point
+  bot = move_to_point
+  mid = move_to_point
+  dancing = true
+
+  -- Execute the movement
+  orbwalker:move_to(move_to_point.x, move_to_point.y, move_to_point.z)
+end
+
+
+
+
+
 function Jinx:init()
   local LuaVersion = 0.2
 	local LuaName = "xJinx"
-	local lua_file_name = "xJinx2.lua"
+	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
 	local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua.version.txt"
 
@@ -426,8 +550,11 @@ function Jinx:init()
     client:set_event_callback("on_tick_always", function() self:on_tick_always() end)
     client:set_event_callback("on_post_attack", function() self:weave_auto_w() end)
     client:set_event_callback("on_draw", function() self:on_draw() end)
-    client:set_event_callback("on_teleport", function(object, duration, name, status) self:ProcessRecall(object, duration, name, status) end)
-    client:set_event_callback("on_dash", function(obj, dash_info) self:on_dash(obj, dash_info) end)
+    client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
+    client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
+
+    -- dance every tick
+    -- client:set_event_callback("on_pre_move", function(...) self:position_optimally(...)  end)
 
     
 end
@@ -1464,68 +1591,65 @@ function Jinx:time_remaining_for_dash(cai)
 end
 
 function Jinx:on_dash(enemy, dash_info)
-  Prints("dash in...", 4)
-  if enemy.is_hero then
+  if enemy.is_enemy and enemy.is_hero and g_local:distance_to(enemy.origin) < 3000 then
+    Prints("dash in...", 4)
 
-    local cai = {
-      path_end = dash_info.end_pos,
-      path_start = enemy.origin,
-      velocity = dash_info.dash_speed,
-      dash_speed = dash_info.dash_speed,
-      is_dashing = true,
-      is_moving = enemy.is_moving,
-    }
+      local cai = {
+        path_end = dash_info.end_pos,
+        path_start = enemy.origin,
+        velocity = dash_info.dash_speed,
+        dash_speed = dash_info.dash_speed,
+        is_dashing = true,
+        is_moving = enemy.is_moving,
+      }
 
-    if (get_menu_val(self.w_agc) or get_menu_val(self.e_agc)) then
-      Prints("checking for dashes", 4) 
-      if Get_distance(g_local.origin, cai.path_end) > Data['W'].range then
-        Prints("is dashing out of range of w :(", 2)
-        return false
-      end
-      Prints("is dashing...", 4)
-
-      local time_remaining = self:time_remaining_for_dash(cai)
-      Prints("Time Remaining: " .. tostring(time_remaining), 4)
-      -- e delay is
-      -- w delay is
-      Prints("e delay: " .. tostring(Data['E'].delay) .. " w delay: " .. tostring((time_remaining > Data['E'].delay - 0.5)), 4)
-      Prints("w delay: " .. tostring(Data['W'].delay) .. " w delay: " .. tostring((time_remaining > Data['W'].delay - 0.5)), 4)
-
-
-      if get_menu_val(self.e_agc) and (time_remaining > Data['E'].delay - 0.5) and Get_distance(g_local.origin, cai.path_end) < Data['E'].range and core.objects:can_cast(e_spell_slot.e) then
-        local e_hit =  _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
-        if e_hit and e_hit.hitChance*100 >= 65 then
-          Prints("e cast on dash ", 2)
-          local castPos = e_hit.castPosition
-          spellbook:cast_spell(e_spell_slot.e, Data['E'].delay, castPos.x, castPos.y, castPos.z)
-          Last_cast_time = game.game_time
-          return true
+      if (get_menu_val(self.w_agc) or get_menu_val(self.e_agc)) then
+        Prints("checking for dashes", 4) 
+        if Get_distance(g_local.origin, cai.path_end) > Data['W'].range then
+          Prints("is dashing out of range of w :(", 2)
+          return false
         end
-      end
-  
-      -- dont w under tower unless already in combo mode
-      if (core.helper:is_under_turret(g_local.origin) and not combo:get_mode() == Combo_key) then return false end
-        if get_menu_val(self.w_agc) and time_remaining > (Data['W'].delay - 0.5) and core.objects:can_cast(e_spell_slot.w) then
-          if Get_distance(g_local.origin, cai.path_end) > 300 then
-            Prints("attempted to cast W", 4)
-            local w_hit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
-            if w_hit and w_hit.hitChance*100 >= 65 then
-              Prints("cast w on dash " .. w_hit.hitChance*100, 2)
-              local castPos = w_hit.castPosition
-              spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
-              return true
-            end
+        Prints("is dashing...", 4)
+
+        local time_remaining = self:time_remaining_for_dash(cai)
+        Prints("Time Remaining: " .. tostring(time_remaining), 4)
+        -- e delay is
+        -- w delay is
+        Prints("e delay: " .. tostring(Data['E'].delay) .. " w delay: " .. tostring((time_remaining > Data['E'].delay - 0.5)), 4)
+        Prints("w delay: " .. tostring(Data['W'].delay) .. " w delay: " .. tostring((time_remaining > Data['W'].delay - 0.5)), 4)
+
+
+        if get_menu_val(self.e_agc) and (time_remaining > Data['E'].delay - 0.5) and Get_distance(g_local.origin, cai.path_end) < Data['E'].range and core.objects:can_cast(e_spell_slot.e) then
+          local e_hit =  _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
+          if e_hit and e_hit.hitChance*100 >= 65 then
+            Prints("e cast on dash ", 2)
+            local castPos = e_hit.castPosition
+            spellbook:cast_spell(e_spell_slot.e, Data['E'].delay, castPos.x, castPos.y, castPos.z)
+            Last_cast_time = game.game_time
+            return true
           end
         end
-  
-      return false
+    
+        -- dont w under tower unless already in combo mode
+        if (core.helper:is_under_turret(g_local.origin) and not combo:get_mode() == Combo_key) then return false end
+          if get_menu_val(self.w_agc) and time_remaining > (Data['W'].delay - 0.5) and core.objects:can_cast(e_spell_slot.w) then
+            if Get_distance(g_local.origin, cai.path_end) > 300 then
+              Prints("attempted to cast W", 4)
+              local w_hit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
+              if w_hit and w_hit.hitChance*100 >= 65 then
+                Prints("cast w on dash " .. w_hit.hitChance*100, 2)
+                local castPos = w_hit.castPosition
+                spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
+                return true
+              end
+            end
+          end
+    
+        return false
+      end
+      Prints("dash exit", 2)
     end
-  
-  
-  
-  
-  end
-  Prints("dash exit", 2)
+    return false
 end
 
 function Jinx:get_harass_minions_near(obj_hero_idx, range)
@@ -1773,9 +1897,18 @@ function Jinx:visualize_spell_range()
     core.vec3_util:drawCircle(g_local.origin, Colors.transparent.blue, Data['W'].range)
   end
 end
-
+-- drawLine = function(self, origin, destination, color, width)
 function Jinx:on_draw()
   Prints("Draws", 4)
+  if top and mid and bot and dancing then
+    core.vec3_util:drawCircleFull(top, Colors.solid.red, 35)
+    core.vec3_util:drawCircleFull(mid, Colors.solid.green, 35)
+    core.vec3_util:drawCircleFull(bot, Colors.solid.blue, 35)
+      --draw a line from me to mid
+    core.vec3_util:drawLine(g_local.origin, mid, Colors.solid.green, 2)
+
+  end
+
 
 -- checkboxJinxSplashHarass
   if get_menu_val(self.checkboxJinxSplashHarass) then
