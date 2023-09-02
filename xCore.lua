@@ -2755,7 +2755,7 @@ local x = class({
 
 
 	init = function(self)
-		local LuaVersion = 0.2
+		local LuaVersion = 0.1
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
