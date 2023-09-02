@@ -489,7 +489,7 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 0.2
+  local LuaVersion = 0.3
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
