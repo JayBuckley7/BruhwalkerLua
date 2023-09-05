@@ -375,6 +375,11 @@ local vec3Util = class({
 		renderer:draw_line(p1xy.x, p1xy.y, p3xy.x, p3xy.y, color.r, color.g, color.b, color.a)
 		renderer:draw_line(p2xy.x, p2xy.y, p4xy.x, p4xy.y, color.r, color.g, color.b, color.a)
 	end,
+	drawText = function (self, text, pos, color, size)
+		local toscreen = game:world_to_screen_2(pos.x, pos.y, pos.z)
+		local size = size or 15
+		renderer:draw_text_size(toscreen.x , toscreen.y, text, size, color.r, color.g, color.b, color.a)
+	end
 })
 
 --------------------------------------------------------------------------------
@@ -655,7 +660,7 @@ local math = class({
 		local range = unit.attack_range
 		local hitbox = unit.bounding_radius or 80
 
-		if unit.champ_name == "Aphelios" and unit.is_hero() and unit:has_buff("aphelioscalibrumbonusrangedebuff") then
+		if unit.champ_name == "Aphelios" and unit.is_hero and unit:has_buff("aphelioscalibrumbonusrangedebuff") then
 			range, hitbox = 1800, 0
 		elseif unit.champ_name == "Caitlyn" and (unit:has_buff("caitlynwsight") or unit:has_buff("CaitlynEMissile")) then
 			range = range + 650
@@ -723,6 +728,42 @@ local objects = class({
 		-- console:log("baseult_pos: " .. tostring(baseult_pos.x) .. " " .. tostring(baseult_pos.y) .. " " .. tostring(baseult_pos.z))
 		return baseult_pos
 	end,
+	get_ordered_turret_targets = function(self, turret, minions)
+		local turret_prio_list = {}
+		local priority = {
+			[3] = 1,  -- Siege Minions
+			[2] = 2,  -- Melee Minions
+			[1] = 3   -- Ranged Minions
+			-- If Super Minions have a different priority, adjust here.
+			-- Currently, Super Minions (4) will be at the end due to the default sorting mechanism.
+		}
+	
+		for i, unit in ipairs(minions) do
+			local dist = vec3Util:distance(turret.origin, unit.origin)
+			table.insert(turret_prio_list, {
+				minion = unit,
+				distance = dist,
+				prio = priority[unit.minion_type] or 4  -- defaults to 4 (lowest priority) if minion_type not in priority table
+			})
+		end
+	
+		-- Custom sort function
+		table.sort(turret_prio_list, function(a, b)
+			if a.prio == b.prio then
+				return a.distance < b.distance
+			end
+			return a.prio < b.prio
+		end)
+	
+		-- Extracting the sorted minions from the list
+		local sorted_minions = {}
+		for _, entry in ipairs(turret_prio_list) do
+			table.insert(sorted_minions, entry.minion)
+		end
+	
+		return sorted_minions
+	end
+	,
 	get_bounding_radius = function(self, unit)
 		return unit.bounding_radius or 45
 	end,
@@ -750,7 +791,6 @@ local objects = class({
 			end
 		end
 
-		-- console:log("enemy_champs: " .. #enemy_champs)
 		return enemy_champs
 	end,
 	get_ally_champs = function(self, range, position)
@@ -798,14 +838,11 @@ local objects = class({
 		range = range or 99999
 		local enemies = {}
 
-		
 		for _, entity in ipairs(game.minions) do
-			local object_name = entity.object_name:lower()
 			if entity and entity.is_enemy then
 				if entity.origin and entity:distance_to(pos) <= range then
-					if core.helper:is_alive(entity) then
+					if core.helper:is_alive(entity) and entity.health > 0 then
 						local object_name = entity.object_name:lower()
-						-- console:log("object_name: " .. object_name)
 						if string.find(object_name, "scrab") or string.find(object_name, "dragon") or string.find(object_name, "riftherald") or string.find(object_name, "baron")
 							or string.find(object_name, "gromp") or string.find(object_name, "blue") or string.find(object_name, "murkwolf")
 							or string.find(object_name, "razorbeak") or string.find(object_name, "red") or string.find(object_name, "krug")
@@ -2736,7 +2773,7 @@ local debug = class({
 --------------------------------------------------------------------------------
 
 local x = class({
-	VERSION = "1.0",
+	VERSION = "0.4",
 	util = nil,
 	permashow = nil,
 	buffcache = nil,

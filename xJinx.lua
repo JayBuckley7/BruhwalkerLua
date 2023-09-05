@@ -347,6 +347,8 @@ function Jinx:add_jmenus()
     self.w_harass = menu:add_checkbox("use W", sections.harass, 1)
     self.w_harass_not_in_range = menu:add_checkbox("^ if outside of aa range", sections.harass, 1)
     self.w_harass_hitChance = menu:add_slider("[W] Hit Chance %", sections.harass, 1, 100, 40)
+    -- slider for mana usage default at 25%
+    self.w_harass_mana = menu:add_slider("[W] harass Mana %", sections.harass, 1, 100, 40)
     self.e_harass = menu:add_checkbox("use E", sections.harass, 1)
 
 
@@ -371,7 +373,7 @@ function Jinx:add_jmenus()
 
     -- Misc
     self.checkboxManR = menu:add_checkbox("manual ult", sections.misc, 1)
-    self.keyBindManR = menu:add_keybinder("[Manual ult] Key", sections.misc, string.byte("U"))
+    self.checkboxAutoSpace = menu:add_checkbox("try auto dance", sections.misc, 1)
 
     -- Draw
     self.checkboxLanePressure = menu:add_checkbox("draw Lane pressure",  sections.draw, 0)
@@ -385,6 +387,25 @@ function Jinx:add_jmenus()
     return self.jmenu
 end  
 
+function farm()
+  -- Prints("farm in")
+
+  for _, v in ipairs(game.turrets) do
+    local turret = v
+    if turret and not turret.is_enemy and Get_distance(turret.origin, g_local.origin) < Data['AA'].long_range then
+      local minions = core.objects:get_enemy_minions(860, turret.origin)
+      if #minions > 0 then 
+        local sorted = core.objects:get_ordered_turret_targets(turret, minions)
+        for i, minion in ipairs(sorted) do
+          core.vec3_util:drawCircle(minion.origin, Colors.transparent.lightCyan, 50)
+          -- (self, text, pos, color, size)
+          core.vec3_util:drawText(i, minion.origin, Colors.solid.lightCyan, 50)
+        end
+      end
+    end
+  end
+end
+
 function Jinx:registerPS()
   core.permashow:set_title(name)
   console:log("registering permashow q farm")
@@ -392,6 +413,9 @@ function Jinx:registerPS()
   core.permashow:register("Fast W", "Fast W", "shift")
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
+  core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
+
+
 end
 
 dancing = false
@@ -399,97 +423,164 @@ state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
 top, mid, bot = nil, nil, nil
 
 function dance()
-  -- Prints("state: " .. state, 2)
-  -- Prints("dancing: " .. tostring(dancing), 2)
-  --   if not dancing then
-  --     Prints("dance ONE set!", 2)
-  --       -- Initialize positions if they haven't been set
-  --       mid = g_local.origin
-  --       top = Vec3_Rotate(mid, {x = mid.x, y = mid.y, z = mid.z + 100}, 90)
-  --       bot = Vec3_Extend(mid, top, -100)
-  --       dancing = true
-  --   end
+  Prints("state: " .. state, 2)
+  Prints("dancing: " .. tostring(dancing), 2)
+    if not dancing then
+      Prints("dance ONE set!", 2)
+        -- Initialize positions if they haven't been set
+        mid = g_local.origin
+        top = Vec3_Rotate(mid, {x = mid.x, y = mid.y, z = mid.z + 100}, 90)
+        bot = Vec3_Extend(mid, top, -100)
+        dancing = true
+    end
 
-  --   local currentPos = g_local.origin
+    local currentPos = g_local.origin
 
-  --   if state == "atMiddle" and Get_distance(currentPos, mid) < 5 then
-  --       Prints("move to top from middle", 2)
-  --       -- move to top from middle
-  --       orbwalker:move_to(top.x, top.y, top.z)
-  --       state = "atTop"
-  --   elseif state == "atTop" and Get_distance(currentPos, top) < 5 then
-  --       Prints("move to bottom from top", 2)
-  --       -- move to bottom from top
-  --       orbwalker:move_to(bot.x, bot.y, bot.z)
-  --       state = "atBottom"
-  --   elseif state == "atBottom" and Get_distance(currentPos, bot) < 5 then
-  --       Prints("move to middle from bottom", 2)
-  --       -- move to middle from bottom
-  --       orbwalker:move_to(top.x, top.y, top.z)
-  --       state = "atMiddle"
-  --   end
+    if state == "atMiddle" and Get_distance(currentPos, mid) < 5 then
+        Prints("move to top from middle", 2)
+        -- move to top from middle
+        orbwalker:move_to(top.x, top.y, top.z)
+        state = "atTop"
+    elseif state == "atTop" and Get_distance(currentPos, top) < 5 then
+        Prints("move to bottom from top", 2)
+        -- move to bottom from top
+        orbwalker:move_to(bot.x, bot.y, bot.z)
+        state = "atBottom"
+    elseif state == "atBottom" and Get_distance(currentPos, bot) < 5 then
+        Prints("move to middle from bottom", 2)
+        -- move to middle from bottom
+        orbwalker:move_to(top.x, top.y, top.z)
+        state = "atMiddle"
+    end
 end
 
-function Jinx:dance_away()
-  self:position_optimally()
-  --enemy = get target
-  -- local enemy = self:Get_target()
-  -- if enemy == nil then return end
-  -- Prints("dancing away from: " .. enemy.object_name, 2)
 
-  -- local extendedPoint = Vec3_Extend(enemy.origin, g_local.origin, enemy.attack_range + g_local.bounding_radius + 100)
-  -- top = extendedPoint
-  -- bot = extendedPoint
-  -- mid = extendedPoint
-  -- dancing = true
+function Jinx:should_stop_dancing()
+  dancing = false
+  orbwalker:disable_move()
+  local should_dance = false
 
-  -- -- Move to the extended point
-  -- orbwalker:move_to(extendedPoint.x, extendedPoint.y, extendedPoint.z)
+  -- we only dance in combo mode
+  if g_local.is_auto_attacking or (combo:get_mode() ~= Combo_key) then dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
+
+  -- and obv only if we have a target who we out speed and outrange
+  local enemy = self:Get_target()
+  if enemy == nil or (enemy.attack_range >= Data['AA'].long_range) or (enemy.move_speed > g_local.move_speed * 1.15 ) or (Get_distance(g_local.origin, enemy.origin) > Data['AA'].long_range + 350) then 
+    dancing = false 
+    orbwalker:enable_move()
+    orbwalker:enable_auto_attacks()
+    return should_dance, enemy
+  end
+
+  -- and only then if we are 1v1
+   local aa_threat_count = 0
+   local enemies =  core.objects:get_enemy_champs(Data['AA'].long_range + 100)
+    for i, enemy in ipairs(enemies) do
+      local nme_pos = enemy.origin
+      local nme_pred =  _G.DreamPred.GetPrediction(enemy, Data['AA'], g_local)
+      if nme_pred then
+        nme_pos = nme_pred.castPosition
+      end
+      -- get distnace
+      if Get_distance(nme_pos, g_local.origin) < enemy.attack_range + 120 then
+        aa_threat_count = aa_threat_count + 1
+      end
+    end
+  
+    if aa_threat_count > 1 then
+      dancing = false 
+      orbwalker:enable_move()
+      return should_dance, enemy
+    end
+
+  should_dance = true
+  return should_dance, enemy
 end
 
 function Jinx:position_optimally()
-  local enemy = self:Get_target()
-  if enemy == nil then return end
-  Prints("Optimal positioning from: " .. enemy.object_name, 2)
-
-  --lets figure out her bb range by extending from us to her - her bounding radius
-  local enemy_actual = Vec3_Extend(g_local.origin, enemy.origin, Get_distance(g_local.origin, enemy.origin)-enemy.bounding_radius)
-  local me_actual = Vec3_Extend(enemy.origin, g_local.origin, Get_distance(g_local.origin, enemy.origin)-g_local.bounding_radius)
-
-  -- extend between enemy and me actual by enemy attack range
-  local enemy_influence = Vec3_Extend(enemy_actual, me_actual, enemy.attack_range)
-
-  -- 2. Calculate the desired distance from the enemy
-  local safety_margin = 0
-
-  -- saftey half the difrence of her range vs the distance between me_actual and her attack_range
-  safety_margin = Get_distance(me_actual, enemy_influence) / 2
-
-
-  -- keep out of enemy range + bounding 
-
-  local desired_distance = enemy.attack_range + safety_margin
-
-  -- extend from enemy to jinx by desired distance
-  local move_to_point = Vec3_Extend(enemy.origin, g_local.origin, desired_distance)
-
+  if not get_menu_val(self.checkboxAutoSpace) then
+    if dancing then
+      dancing = false 
+      orbwalker:enable_move()
+      orbwalker:enable_auto_attacks()
+    end
+    return false
+  end
+  local should_dance, enemy = self:should_stop_dancing()
+  if not enemy or not should_dance then return false end
+  dancing = should_dance 
+  orbwalker:disable_move()
+  orbwalker:disable_auto_attacks()
   
-  -- Save the final point and set the dancing variable to true
-  top = move_to_point
-  bot = move_to_point
+  Prints("dancin on " .. enemy.object_name, 4)
+  local nme_pos = enemy.origin
+  local nme_pred =  _G.DreamPred.GetPrediction(enemy, Data['AA'], g_local)
+  if nme_pred then
+    nme_pos = nme_pred.castPosition
+  end
+
+  local enemy_theat_range = enemy.attack_range + enemy.bounding_radius + g_local.bounding_radius
+  local my_theat_range = g_local.attack_range + enemy.bounding_radius + g_local.bounding_radius - 30
+
+
+  -- Calculate the point where the enemy is exactly at the edge of Jinx's attack range
+  local move_to_point = Vec3_Extend(nme_pos, game.mouse_pos, my_theat_range)
+
+
+  -- Adjust the position to be outside of the threat range
+  local distance_from_enemy_to_point = Get_distance(enemy.origin, move_to_point)
+
+  if distance_from_enemy_to_point < enemy_theat_range then
+      move_to_point = Vec3_Extend(enemy.origin, g_local.origin, enemy_theat_range +55)
+      --Prints("shoved")
+  else
+    --Prints("not shoved")
+  end
+  local war_path = g_local.path.current_waypoints -- table of vec3
+  local gets_to_close = false
+  -- lets loop these then decide if these are too close to the enemy
+  for i, point in ipairs(war_path) do
+    if Get_distance(point, enemy.origin) < enemy_theat_range then
+      gets_to_close = true
+    else
+    end
+  end
+
+  if gets_to_close then
+    move_to_point = Vec3_Extend(enemy.origin, g_local.origin, enemy_theat_range +100)
+    -- Prints("bad path shove")
+  else
+    --Prints("no  path shove")
+  end
+
+
+
+  top = Vec3_Extend(enemy.origin, g_local.origin, my_theat_range)
   mid = move_to_point
+  bot = Vec3_Extend(enemy.origin, g_local.origin, enemy_theat_range)
   dancing = true
 
+
   -- Execute the movement
+  orbwalker:enable_move()
+  -- console:log("attempt move")
   orbwalker:move_to(move_to_point.x, move_to_point.y, move_to_point.z)
+  -- issueorder:move(move_to_point)
+  -- console:log("move attempted")
+
+  -- enable auto attacks if we're far enough away now
+  if Get_distance(g_local.origin, enemy.origin) > enemy_theat_range then
+    orbwalker:enable_auto_attacks()
+  end
+
+  orbwalker:disable_move()
+
+  return false
 end
 
 
-
-
-
 function Jinx:init()
-  local LuaVersion = 0.3
+  local LuaVersion = 0.4
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
@@ -548,13 +639,14 @@ function Jinx:init()
     self:registerPS()
     client:set_event_callback("on_tick_always", function() Data:refresh_data()  end)
     client:set_event_callback("on_tick_always", function() self:on_tick_always() end)
-    client:set_event_callback("on_post_attack", function() self:weave_auto_w() end)
+    -- client:set_event_callback("on_post_attack", function() self:weave_auto_w() end)
     client:set_event_callback("on_draw", function() self:on_draw() end)
+
     client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
 
     -- dance every tick
-    -- client:set_event_callback("on_pre_move", function(...) self:position_optimally(...)  end)
+    client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
 
     
 end
@@ -934,6 +1026,7 @@ function Jinx:get_w_hitChance_setting()
 end
 
  function Jinx:weave_auto_w()
+  Prints("weave auto w", 2)
   --if ready w
   if not self:ready(e_spell_slot.w) then return false end
   local mode = combo:get_mode()
@@ -980,7 +1073,7 @@ end
 
   if self:should_skip_w_cast() then return false end
 
-  Prints("get chance" , 2)
+  Prints("get chance" , 4)
   local chancereq = self:get_w_hitChance_setting()
 
   local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
@@ -1027,7 +1120,8 @@ function Jinx:spell_w()
   local mode = combo:get_mode()
 
   local should_w_combo = (mode == Combo_key and get_menu_val(self.w_combo))
-  local should_w_harass = (mode == Harass_key and get_menu_val(self.w_harass))
+  local curr_mana_perc =  g_local.mana / g_local.max_mana * 100 
+  local should_w_harass = (mode == Harass_key and get_menu_val(self.w_harass) and menu:get_value(self.w_harass_mana) <= curr_mana_perc)
   local should_w_ks = (get_menu_val(self.w_KS))
   local should_w_Jungle_clear = (mode == Clear_key and get_menu_val(self.q_clear_aoe))
   -- no w in evade or no target or out of range
@@ -1508,8 +1602,8 @@ function Jinx:baseult()
   for i, recall in pairs(Recalling) do
     local enemy = game:get_object(recall.champ)
     if not enemy then return end
-  --   local rdmg = core.damagelib:calc_spell_dmg("R", g_local, enemy, 1, core.objects:get_spell_level(e_spell_slot.r))
-    local rdmg = 50000000
+    local rdmg = core.damagelib:calc_spell_dmg("R", g_local, enemy, 1, core.objects:get_spell_level(e_spell_slot.r))
+    -- local rdmg = 50000000
 
     if enemy.health + 30 > rdmg then
       return false
@@ -1591,7 +1685,7 @@ function Jinx:time_remaining_for_dash(cai)
 end
 
 function Jinx:on_dash(enemy, dash_info)
-  if enemy.is_enemy and enemy.is_hero and g_local:distance_to(enemy.origin) < 3000 then
+  if enemy.is_enemy and enemy.is_hero and g_local:distance_to(enemy.origin) < 1600 then
     Prints("dash in...", 4)
 
       local cai = {
@@ -1909,7 +2003,6 @@ function Jinx:on_draw()
 
   end
 
-
 -- checkboxJinxSplashHarass
   if get_menu_val(self.checkboxJinxSplashHarass) then
     self:show_splash_harass()
@@ -1918,6 +2011,9 @@ function Jinx:on_draw()
     -- Prints("draw Q", 3)
     self:visualize_spell_range()
   end
+
+  farm()
+
 end
 
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
@@ -1927,7 +2023,7 @@ end
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
 function Jinx:on_tick_always()
     Prints("tick...", 4)
-    if not get_menu_val(self.Jinx_enabled) then return end
+    if not get_menu_val(self.Jinx_enabled) or not g_local.is_alive then return end
     if self:ready(e_spell_slot.q) then
         self:spell_q()
     end
