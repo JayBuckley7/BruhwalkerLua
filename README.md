@@ -4,7 +4,8 @@ This is a release of My and @ampx Jinx Lua, a Lua script for Jinx, a champion in
 
 ## Instructions
 1. Add `xJinx.lua` to the lua folder.
-2. That's it! You're ready to use the script.
+2. Add `xCore.lua` to the lua folder.
+3. That's it! You're ready to use the script.
 
 ## Prerequisites
 xCore.lua
