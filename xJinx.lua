@@ -43,6 +43,7 @@ local Recalling = 0
 
 LAST_AA_TARGET = nil
 
+-- MinionsUnkillable = {}
 MinionInrange = {}
 MinionToHarass = {}
 SplashableTargetIndex = nil
@@ -407,11 +408,8 @@ function Jinx:add_jmenus()
 end  
 
 
-
-
 function farm()
   -- Prints("farm in")
-
   for _, v in ipairs(game.turrets) do
     local turret = v
     if turret and not turret.is_enemy and Get_distance(turret.origin, g_local.origin) < Data['AA'].long_range then
@@ -420,7 +418,6 @@ function farm()
         local sorted = core.objects:get_ordered_turret_targets(turret, minions)
         for i, minion in ipairs(sorted) do
           core.vec3_util:drawCircle(minion.origin, Colors.transparent.lightCyan, 50)
-          -- (self, text, pos, color, size)
           core.vec3_util:drawText(i, minion.origin, Colors.solid.lightCyan, 50)
         end
       end
@@ -675,12 +672,11 @@ function Jinx:init()
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
     client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
 
-    client:set_event_callback("on_pre_move", function(...) self:deny_turret_harass(...) end)
     _G.DynastyOrb:AddCallback("OnMovement", function(...) self:deny_turret_harass(...) end)
+    -- _G.DynastyOrb:AddCallback("OnUnKillable", function(...) self:turret_spell_farm(...) end)
 
 
 
-    
 end
 
 
@@ -949,7 +945,7 @@ function Jinx:deny_turret_harass(pos)
 end
 
 function Jinx:exit_rocket_logic()
-    Prints("exit rocket logic", 4)
+    Prints("exit rocket logic", 2)
     local mode = combo:get_mode()
 
     if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Combo_key and mode ~= Idle_key and get_menu_val(self.q_clear) then
@@ -1004,7 +1000,6 @@ function Jinx:exit_rocket_logic()
   
     return false
   end
-
 
 local function save_minion_with_q()
   Prints("save min q?", 4)
@@ -1062,7 +1057,6 @@ function Jinx:combo_harass_q()
         if (Data['AA'].rocket_launcher and Data['AA'].enemy_far and Data['AA'].enemy_close) then
           -- we need more attack speed...
           spellbook:cast_spell(e_spell_slot.q)
-
           Last_Q_swap_time = game.game_time
           return true
         end
@@ -2057,6 +2051,7 @@ function Jinx:Splash_harass()
                       Prints("sending extendo need Q " .. min_obj.object_name, 2)
  
                       spellbook:cast_spell(e_spell_slot.q)
+                      -- Last_Q_swap_time = game.game_time
                     end
                     if orbwalker:can_attack()  then
                       Prints("sending extendo attack to " .. min_obj.object_name, 5)
@@ -2171,6 +2166,18 @@ function Jinx:on_draw()
   end
 
   farm()
+
+  -- draw all unkillable minions
+  -- if #MinionsUnkillable > 0 then
+  --   -- draw them all circles
+  --   for i, minion in ipairs(MinionsUnkillable) do
+  --     if minion  and core.helper:is_alive(minion) then
+  --       core.vec3_util:drawCircleFull(minion.origin, Colors.solid.red, 35)
+  --     else
+  --       table.remove(MinionsUnkillable, i)
+  --     end
+  --   end
+  -- end
 
 end
 
