@@ -875,7 +875,7 @@ end
 
 function Jinx:deny_turret_harass(pos)
 -- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
-  if pos and (combo:get_mode() == Harass_key or combo:get_mode() == Clear_key) then
+  if pos and (combo:get_mode() == Harass_key ) then
     local isunder, turret = core.helper:is_under_turret(pos)
     if isunder then
       Prints("is under turret yeah " .. type(pos))
