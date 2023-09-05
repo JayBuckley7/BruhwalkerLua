@@ -2792,7 +2792,7 @@ local x = class({
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
-		local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua.version.txt"
+		local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/versions/xCore.lua.version.txt"
 	
 		-- do
 		-- 	local function AutoUpdate()
