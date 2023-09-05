@@ -238,11 +238,8 @@ end
     local _y = v1.y + dy * scale
     local _z = v1.z + dz * scale
 
-    return {
-        x = _x,
-        y = _y,
-        z = _z
-    }
+    Prints("ret from extend",4)
+    return vec3.new(_x, _y,_z)
 end
 
 
@@ -373,6 +370,7 @@ function Jinx:add_jmenus()
 
     -- Misc
     self.checkboxManR = menu:add_checkbox("manual ult", sections.misc, 1)
+    self.checkboxAntiTurretTech = menu:add_checkbox("deny turret aggro in harrass", sections.misc, 1)
     self.checkboxAutoSpace = menu:add_checkbox("try auto dance", sections.misc, 1)
 
     -- Draw
@@ -386,6 +384,9 @@ function Jinx:add_jmenus()
     
     return self.jmenu
 end  
+
+
+
 
 function farm()
   -- Prints("farm in")
@@ -411,7 +412,9 @@ function Jinx:registerPS()
   console:log("registering permashow q farm")
   core.permashow:register("farm", "farm", "A", true, self.q_clear_aoe)
   core.permashow:register("Fast W", "Fast W", "shift")
+  
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
+  core.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.checkboxAntiTurretTech)
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
   core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
 
@@ -456,6 +459,7 @@ end
 
 
 function Jinx:should_stop_dancing()
+  if g_local.is_auto_attacking then return false end
   dancing = false
   orbwalker:disable_move()
   local should_dance = false
@@ -509,8 +513,11 @@ function Jinx:position_optimally()
   local should_dance, enemy = self:should_stop_dancing()
   if not enemy or not should_dance then return false end
   dancing = should_dance 
-  orbwalker:disable_move()
-  orbwalker:disable_auto_attacks()
+  if not g_local.is_auto_attacking then
+    orbwalker:disable_auto_attacks()
+  end
+  _G.DynastyOrb:BlockMovement()
+
   
   Prints("dancin on " .. enemy.object_name, 4)
   local nme_pos = enemy.origin
@@ -564,7 +571,8 @@ function Jinx:position_optimally()
   -- Execute the movement
   orbwalker:enable_move()
   -- console:log("attempt move")
-  orbwalker:move_to(move_to_point.x, move_to_point.y, move_to_point.z)
+  _G.DynastyOrb:ForceMovePosition(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
+  issueorder:move(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
   -- issueorder:move(move_to_point)
   -- console:log("move attempted")
 
@@ -573,14 +581,13 @@ function Jinx:position_optimally()
     orbwalker:enable_auto_attacks()
   end
 
-  orbwalker:disable_move()
 
   return false
 end
 
 
 function Jinx:init()
-  local LuaVersion = 0.4
+  local LuaVersion = 0.5
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
@@ -639,14 +646,18 @@ function Jinx:init()
     self:registerPS()
     client:set_event_callback("on_tick_always", function() Data:refresh_data()  end)
     client:set_event_callback("on_tick_always", function() self:on_tick_always() end)
+    client:set_event_callback("on_pre_attack", function() self:exit_rocket_logic() end)
     client:set_event_callback("on_post_attack", function() self:weave_auto_w() end)
     client:set_event_callback("on_draw", function() self:on_draw() end)
 
     client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
-
-    -- dance every tick
     client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
+
+    -- client:set_event_callback("on_pre_move", function(...) self:deny_turret_harass(...) end)
+    _G.DynastyOrb:AddCallback("OnMovement", function(...) self:deny_turret_harass(...) end)
+
+
 
     
 end
@@ -798,7 +809,7 @@ function Jinx:get_sorted_r_targets(enemies, delay)
 end
 
 function Jinx:Get_target()
-    -- Prints("gettgt", 4)
+    Prints("gettgt", 4)
 
     -- if core.target_selector:GET_STATUS() then print("ts: true") else print("ts: false") end
     local target = core.target_selector:get_main_target()
@@ -832,6 +843,13 @@ function Jinx:Get_target()
     -- if target == nil then
     --   -- Prints("no target", 1)
     -- end
+    --set orbwalker target
+    Prints("attemtp set orb tgt ", 4)
+    if target then 
+      DynastyOrb:SetTarget(target)
+    end
+    Prints("attemted set orb tgt ", 4)
+
     return target
   end
 
@@ -855,6 +873,60 @@ local function Get_minions(range)
   return minions_in_range
 end
 
+function Jinx:deny_turret_harass(pos)
+-- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
+  if pos and (combo:get_mode() == Harass_key or combo:get_mode() == Clear_key) then
+    local isunder, turret = core.helper:is_under_turret(pos)
+    if isunder then
+      Prints("is under turret yeah " .. type(pos))
+      local new_click = Vec3_Extend(turret.origin, pos, 950)
+      _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
+      _G.DynastyOrb:BlockMovement()
+      Prints("attmept to force move")
+      issueorder:move(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
+      Prints("attmepted to force move")
+      -- orbwalker:move_to(new_click.x, new_click.y, new_click.z)
+      Prints("attmepted to force move agains")
+
+      -- local war_path = g_local.path.current_waypoints -- table of vec3
+      -- for i, point in ipairs(war_path) do
+      --   local isunder, turret = core.helper:is_under_turret(point)
+      --   if isunder then
+      --     gets_to_close = true
+    
+      --     local newer_click = Vec3_Extend(turret.origin, g_local.origin, 900)
+      --     _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
+      --     _G.DynastyOrb:BlockMovement()
+      --     Prints("war force move 1")
+      --     issueorder:move(newer_click)-- Can be used here or other callbacks, will force the next orb movement to that position
+      --     Prints("war force move 2")
+      --     orbwalker:move_to(newer_click.x, newer_click.y, newer_click.z)
+      --     Prints("war force move 3")
+
+    
+    
+      --     dancing = true
+      --     top = newer_click
+      --     mid = newer_click
+      --     bot = newer_click
+      --     return true
+      --   end
+      -- end
+
+      dancing = true
+      top = new_click
+      mid = new_click
+      bot = new_click
+      return true
+    end
+
+--     local new_click = Vec3_Extend(pos, g_local.origin, 850+g_local.bounding_radius)
+--     orbwalker:move_to(new_click.x, new_click.y, new_click.z)
+--   end
+  return false
+  end
+end
+
 function Jinx:exit_rocket_logic()
     local mode = combo:get_mode()
     if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Combo_key and mode ~= Idle_key and get_menu_val(self.q_clear) then
@@ -867,6 +939,15 @@ function Jinx:exit_rocket_logic()
         Last_Q_swap_time = game.game_time
         return true
       end
+    end
+
+    --if orbawalker target is minion and mode is clear or harass and target is in range of aa and we are in rocket mode then swap q to minigun
+    local target = orbwalker:get_orbwalker_target()
+    if target and target.is_minion and core.helper:is_alive(target) and (mode == Clear_key or mode == Harass_key) and g_local:distance_to(target.origin) < Data['AA'].long_range and Data['AA'].rocket_launcher then
+      Prints("exit rocket mode, bcuz minion in aa range", 2)
+      spellbook:cast_spell(e_spell_slot.q)
+      Last_Q_swap_time = game.game_time
+      return true
     end
     return false
   end
@@ -909,7 +990,7 @@ local function save_minion_with_q()
       Prints("got mins in long range: " .. tostring(#minions_in_range), 4)
       
       for _, minion in ipairs(minions_in_range) do
-        if g_local:distance_to(minion.origin) > Data['AA'].short_range + 35 then
+        if Get_distance(g_local.origin, minion.origin) > Data['AA'].short_range + 35 then
 
           local delay = core.objects:get_aa_travel_time(minion, g_local, 1700) + 0.35       
           local hpPred = DynastyOrb:GetPredictedHealth(minion, delay)
@@ -935,6 +1016,7 @@ local function save_minion_with_q()
   end
 
 function Jinx:combo_harass_q()
+  
     local target = self:Get_target()
    
 
@@ -1026,7 +1108,7 @@ function Jinx:get_w_hitChance_setting()
 end
 
  function Jinx:weave_auto_w()
-  Prints("weave auto w", 2)
+  Prints("weave auto w", 4)
   --if ready w
   if not self:ready(e_spell_slot.w) then return false end
   local mode = combo:get_mode()
@@ -1038,8 +1120,8 @@ end
   --if not should then false
   if not should_w_combo and not should_w_Jungle_clear  then return false end
 
-  if should_w_combo then
-    local target = self:Get_target()
+  local target = self:Get_target()
+  if should_w_combo and target then
     local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
     if not in_Q_range then return false end
 
@@ -2045,7 +2127,7 @@ end
 
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
 function Jinx:on_tick_always()
-    Prints("tick...", 4)
+    -- Prints("tick...", 4)
     if not get_menu_val(self.Jinx_enabled) or not g_local.is_alive then return end
     if self:ready(e_spell_slot.q) then
         self:spell_q()

@@ -1060,14 +1060,15 @@ local xHelper = class({
 	end,
 	is_under_turret = function(self,pos)
 
-		local range = 850
+		local range = 905
+		local turret = nil
 		for _, unit in ipairs(game.turrets) do
 		  if unit  and unit.is_enemy and not unit.is_dead then
-			local away = vec3Util:distance(unit.origin, pos)
-			if away < range then return true end
+			local dist_away = vec3Util:distance(unit.origin, pos)
+			if dist_away < range then return true, unit end
 		  end
 		end
-		return false
+		return false, nil
 	  end,
 	is_valid = function(self, unit)
 		return unit and unit.is_valid and unit.is_targetable
@@ -2769,7 +2770,7 @@ local debug = class({
 --------------------------------------------------------------------------------
 
 local x = class({
-	VERSION = "0.4",
+	VERSION = "0.5",
 	util = nil,
 	permashow = nil,
 	buffcache = nil,
@@ -2788,7 +2789,7 @@ local x = class({
 
 
 	init = function(self)
-		local LuaVersion = 0.4
+		local LuaVersion = 0.5
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
