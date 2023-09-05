@@ -2795,25 +2795,25 @@ local x = class({
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
 		local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/versions/xCore.lua.version.txt"
 	
-		-- do
-		-- 	local function AutoUpdate()
-		-- 		http:get_async(version_url, function(success, web_version)
-		-- 			console:log(LuaName .. ".lua Vers: "..LuaVersion)
-		-- 			console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
-		-- 			if tonumber(web_version) <= LuaVersion then
-		-- 				console:log(LuaName .. " Successfully Loaded..")
-		-- 			else
-		-- 				http:download_file_async(lua_url, lua_file_name, function(success)
-		-- 					if success then
-		-- 						console:log(LuaName .. " Update available..")
-		-- 						console:log("Please Reload via F5!..")
-		-- 					end
-		-- 				end)
-		-- 			end
-		-- 		end)
-		-- 	end
-		-- 	-- AutoUpdate()
-		-- end
+		do
+			local function AutoUpdate()
+				http:get_async(version_url, function(success, web_version)
+					console:log(LuaName .. ".lua Vers: "..LuaVersion)
+					console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
+					if tonumber(web_version) <= LuaVersion then
+						console:log(LuaName .. " Successfully Loaded..")
+					else
+						http:download_file_async(lua_url, lua_file_name, function(success)
+							if success then
+								console:log(LuaName .. " Update available..")
+								console:log("Please Reload via F5!..")
+							end
+						end)
+					end
+				end)
+			end
+			AutoUpdate()
+		end
 		print("=-=--=-=-=-=-==-=--==-=-=--=-==--==-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-")
 		self.util = util:new()
 		self.Colors = util.Colors

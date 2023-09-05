@@ -158,6 +158,8 @@ local Data = {
     },
   }
 
+  Rates = { "slow", "instant", "very slow" }
+
   function Get_distance(start_point, end_point)
     local dx = start_point.x - end_point.x
     local dy = start_point.y - end_point.y
@@ -329,8 +331,16 @@ function Jinx:add_jmenus()
     self.w_combo = menu:add_checkbox("use W", sections.combo, 1)
     self.w_combo_not_in_range = menu:add_checkbox("^ if outside of aa range", sections.combo, 1)
     self.w_combo_hitChance = menu:add_slider("W hitChance", sections.combo, 1, 100, 70)
+    self.w_combo_castrate = { "Slow Cast Rate", "Fast Cast Rate", "Very Slow" }
+    self.w_combo_rate = menu:add_dropdown("W in Combo CastRate", sections.combo, self.w_combo_castrate, 1)
+    
  
     self.e_combo = menu:add_checkbox("use E", sections.combo, 1)
+    self.e_combo_castrate = { "Slow Cast Rate", "Fast Cast Rate", "Very Slow" }
+    self.e_combo_rate = menu:add_dropdown("E in Combo CastRate", sections.combo, self.e_combo_castrate, 1)
+
+
+
 
     -- Clear
     self.q_clear = menu:add_checkbox("use Q (minion of range)", sections.clear, 1)
@@ -344,6 +354,10 @@ function Jinx:add_jmenus()
     self.w_harass = menu:add_checkbox("use W", sections.harass, 1)
     self.w_harass_not_in_range = menu:add_checkbox("^ if outside of aa range", sections.harass, 1)
     self.w_harass_hitChance = menu:add_slider("[W] Hit Chance %", sections.harass, 1, 100, 40)
+    self.w_harass_castrate = { "Slow Cast Rate", "Fast Cast Rate", "Very Slow" }
+    self.w_harass_rate = menu:add_dropdown("[W] in Harass CastRate", sections.harass, self.w_harass_castrate, 1)
+
+
     -- slider for mana usage default at 25%
     self.w_harass_mana = menu:add_slider("[W] harass Mana %", sections.harass, 1, 100, 40)
     self.e_harass = menu:add_checkbox("use E", sections.harass, 1)
@@ -355,12 +369,19 @@ function Jinx:add_jmenus()
     self.e_auto = menu:add_checkbox("auto E Stasis/cc/immobile", sections.auto, 1)
 
     self.w_KS = menu:add_checkbox("W KS", sections.auto, 1)
+    self.w_KS_hitChance = menu:add_slider("[W] KS Hit Chance %", sections.auto, 1, 100, 60)
+    self.w_KS_castrate = { "Slow Cast Rate", "Fast Cast Rate", "Very Slow" }
+    self.w_KS_rate = menu:add_dropdown("[W] in KS CastRate", sections.auto, self.w_KS_castrate, 1)
+
     self.r_KS = menu:add_checkbox("R KS", sections.auto, 1)
 
     self.r_auto_base_ult_vision = menu:add_checkbox("Base Ult in vision", sections.auto, 1)
     self.r_combo_multihit = menu:add_checkbox("R Multihit combo", sections.auto, 1)
 
     self.r_KS_hitChance = menu:add_slider("[R] KS Hit Chance %", sections.auto, 1, 100, 60)
+    self.r_KS_castrate = { "Slow Cast Rate", "Fast Cast Rate", "Very Slow" }
+    self.r_KS_rate = menu:add_dropdown("[R] in KS CastRate", sections.auto, self.r_KS_castrate, 1)
+
     self.r_KS_dashless = menu:add_checkbox("^ only if no dash", sections.auto, 1)
 
 
@@ -594,25 +615,25 @@ function Jinx:init()
 	local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/versions/xJinx.lua.version.txt"
 
 
-  --   do
-	-- 	local function AutoUpdate()
-	-- 		http:get_async(version_url, function(success, web_version)
-	-- 			console:log(LuaName .. ".lua Vers: "..LuaVersion)
-	-- 			console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
-	-- 			if tonumber(web_version) <= LuaVersion then
-	-- 				console:log(LuaName .. " Successfully Loaded..")
-	-- 			else
-	-- 				http:download_file_async(lua_url, lua_file_name, function(success)
-	-- 					if success then
-	-- 						console:log(LuaName .. " Update available..")
-	-- 						console:log("Please Reload via F5!..")
-	-- 					end
-	-- 				end)
-	-- 			end
-	-- 		end)
-	-- 	end
-	-- 	-- AutoUpdate()
-	-- end
+    do
+		local function AutoUpdate()
+			http:get_async(version_url, function(success, web_version)
+				console:log(LuaName .. ".lua Vers: "..LuaVersion)
+				console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
+				if tonumber(web_version) <= LuaVersion then
+					console:log(LuaName .. " Successfully Loaded..")
+				else
+					http:download_file_async(lua_url, lua_file_name, function(success)
+						if success then
+							console:log(LuaName .. " Update available..")
+							console:log("Please Reload via F5!..")
+						end
+					end)
+				end
+			end)
+		end
+		-- AutoUpdate()
+	end
 
     self.Q = { range = 800 }
     self.W = { range = 925 }
@@ -654,7 +675,7 @@ function Jinx:init()
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
     client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
 
-    -- client:set_event_callback("on_pre_move", function(...) self:deny_turret_harass(...) end)
+    client:set_event_callback("on_pre_move", function(...) self:deny_turret_harass(...) end)
     _G.DynastyOrb:AddCallback("OnMovement", function(...) self:deny_turret_harass(...) end)
 
 
@@ -773,11 +794,11 @@ function Jinx:get_sorted_targets(enemies, damage_function, spell_data, delay)
       local dmg = damage_function(enemy)
 
       -- console:log("we doin dmg " .. tostring(dmg) .. " to " .. tostring(enemy.object_name))
-      local wHit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
+      local w_hit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
 
-      -- console:log("we got a live one: " .. tostring(wHit))
-      if wHit ~= nil then
-          table.insert(targets, { target = enemy, hp = hpPred, hitChance = wHit.hitChance*100, damage = dmg })
+      -- console:log("we got a live one: " .. tostring(w_hit))
+      if w_hit ~= nil then
+          table.insert(targets, { target = enemy, hp = hpPred, hitChance = w_hit.hitChance*100, damage = dmg })
       end
     end
     Prints("sort target exit with " .. #targets, 4)
@@ -823,9 +844,9 @@ function Jinx:Get_target()
       -- try even harder to find a target
       if target == nil or (target and g_local:distance_to(target.origin) > 2000) then
         if core.objects:count_enemy_champs(2000) > 0 then
-          print("get second try")
+          -- print("get second try")
           target = core.target_selector:get_second_target(2000)
-          print("get thirds try")
+          -- print("get thirds try")
           
           if target == nil or (target and g_local:distance_to(target.origin) > 2000) then
             local enemies = core.objects:get_enemy_champs(2000)
@@ -928,7 +949,9 @@ function Jinx:deny_turret_harass(pos)
 end
 
 function Jinx:exit_rocket_logic()
+    Prints("exit rocket logic", 4)
     local mode = combo:get_mode()
+
     if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Combo_key and mode ~= Idle_key and get_menu_val(self.q_clear) then
       if mode == Harass_key and Data['AA'].enemy_far then
         return false
@@ -1094,28 +1117,38 @@ end
   return false
 end
 
-function Jinx:get_w_hitChance_setting()
+function Jinx:should_try_w_hit_pred(w_hit)
+  if pred == nil then return false end
+  local should_cast = false
+ 
+
   local mode = combo:get_mode()
-  local chance = menu:get_value(self.w_combo_hitChance)
+  local w_rate = menu:get_value(self.w_combo_rate) + 1
+
   -- if we're in harass mode, use the harass hitChance setting
   if mode == Harass_key then
-    chance = menu:get_value(self.w_harass_hitChance)
-    -- if we're in combo mode and we're holding shift key, force w to go off
-  elseif game:is_key_down(core.e_key.shift) then
-    chance = 0
+    w_rate = menu:get_value(self.w_harass_rate) + 1
   end
-  return chance
+
+  --local
+  should_cast = w_hit.rates[Rates[w_rate]]
+  
+  if game:is_key_down(core.e_key.shift) then
+    should_cast = true
+  end
+
+
+  return should_cast
 end
 
  function Jinx:weave_auto_w()
-  Prints("weave auto w", 4)
+  Prints("weave auto w", 3)
   --if ready w
   if not self:ready(e_spell_slot.w) then return false end
   local mode = combo:get_mode()
   local should_w_combo = (mode == Combo_key and get_menu_val(self.w_combo))
   local prev_target = orbwalker:get_orbwalker_target()
   local should_w_Jungle_clear = (mode == Clear_key and get_menu_val(self.q_clear_aoe) and prev_target.is_jungle_minion)
-
 
   --if not should then false
   if not should_w_combo and not should_w_Jungle_clear  then return false end
@@ -1134,16 +1167,15 @@ end
     local near_death = aa_to_kill <= 2
     if full_combo and mode == Combo_key then should_w_in_aa_range = true end
 
-
     if in_Q_range then
       if should_w_in_aa_range and not near_death then
         Prints("weave auto w", 2)
-        local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
-        if wHit and wHit.hitChance*100 >= self:get_w_hitChance_setting() then
-          Prints("combo: casting w hitChance is " .. chanceStrings[wHit.hitChance], 2)
-          local castPos = wHit.castPosition
-      
-        spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
+        local w_hit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
+
+        if w_hit and self:should_try_w_hit_pred(w_hit) then
+          Prints("combo: casting w hitChance is " .. chanceStrings[w_hit.hitChance], 2)
+          local castPos = w_hit.castPosition
+          spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
     
           return true
         end
@@ -1179,12 +1211,11 @@ end
   if self:should_skip_w_cast() then return false end
 
   Prints("get chance" , 4)
-  local chancereq = self:get_w_hitChance_setting()
 
-  local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
-  if wHit and wHit.hitChance*100 >= chancereq then
-    Prints("combo: casting w hitChance is " .. wHit.hitChance*100)
-    local castPos = wHit.castPosition
+  local w_hit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
+  if w_hit and self:should_try_w_hit_pred(w_hit) then
+    Prints("combo: casting w hitChance is " .. w_hit.hitChance*100)
+    local castPos = w_hit.castPosition
     spellbook:cast_spell(SLOT_W, 0, castPos.x, castPos.y, castPos.z)
     Last_cast_time = game.game_time
     return true
@@ -1205,10 +1236,13 @@ function Jinx:w_ks_logic()
     -- Prints("target: " .. tostring(target_info.target.object_name) .. " hp: " .. tostring(target_info.hp) .. " dmg: " .. tostring(target_info.damage) .. " hitChance: " .. tostring(target_info.hitChance), 2)
     if target_info.damage > target_info.hp + 15 and target_info.hp > 1 and target_info.hitChance*100 > ks_w_hitChance then
 
-      local wHit =  _G.DreamPred.GetPrediction(target_info.target, Data['W'], g_local)
-      if wHit and wHit.hitChance*100 >= ks_w_hitChance  then
-        Prints("KS: casting w hitChance is " .. tostring(wHit.hitChance*100), 4)
-        local castPos = wHit.castPosition
+      local w_hit =  _G.DreamPred.GetPrediction(target_info.target, Data['W'], g_local)
+      local w_KS_rate = menu:get_value(self.w_KS_rate) + 1
+
+
+      if w_hit and w_hit.rates[Rates[w_KS_rate]] then
+        Prints("KS: casting w hitChance is " .. tostring(w_hit.hitChance*100), 4)
+        local castPos = w_hit.castPosition
         spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
         Last_cast_time = game.game_time
         return true
@@ -1271,7 +1305,7 @@ local function get_e_vecs(start)
   return left, start, right
 end
 
-local function count_hit_by_traps(center, enemies)
+function Jinx:count_hit_by_traps(center, enemies)
   Prints("count_hit_by_traps", 4)
   local hit_count = 0
   local left, _, right = get_e_vecs(center)
@@ -1283,7 +1317,9 @@ local function count_hit_by_traps(center, enemies)
     if enemy and core.helper:is_alive(enemy) then
 
       local e_hit =  _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
-      if e_hit then 
+      local e_hit_chance = menu:get_value(self.e_combo_rate) + 1
+
+      if e_hit and e_hit.rates[Rates[e_hit_chance]] then
         local dist_to_center = Get_distance(e_hit.castPosition, center)
         Prints("dist_to_center: " .. tostring(dist_to_center), 5)
         local dist_to_left = Get_distance(e_hit.castPosition, left)
@@ -1300,7 +1336,7 @@ local function count_hit_by_traps(center, enemies)
 
   return hit_count
 end
-
+ -- 
 function Jinx:should_e_multihit()
   local enemies = core.objects:get_enemy_champs(Data['E'].range - 50)
 
@@ -1308,8 +1344,10 @@ function Jinx:should_e_multihit()
     if enemy and core.helper:is_alive(enemy) then
       local e_hit =  _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
 
-      if e_hit and e_hit.hitChance*100 >= 65 then
-        local hit_count = count_hit_by_traps(e_hit.castPosition, enemies)
+      local e_rate = menu:get_value(self.e_combo_rate) + 1
+          
+      if e_hit and e_hit.rates[Rates[e_rate]] then
+        local hit_count = self:count_hit_by_traps(e_hit.castPosition, enemies)
 
         if hit_count > 1 then
           Prints("Casting E to hit " .. hit_count .. " enemies", 2)
@@ -1352,10 +1390,10 @@ function Jinx:spell_e()
   local mode = combo:get_mode()
   local should_e_combo = (mode == Combo_key and get_menu_val(self.e_combo))
 
-  if should_e_combo and Jinx:should_e_multihit() then
+  if should_e_combo and self:should_e_multihit() then
     return true     
   end
-  if should_e_combo and Jinx:should_e_slowed() then
+  if should_e_combo and self:should_e_slowed() then
     return true
   end
 
@@ -1371,11 +1409,12 @@ function Jinx:should_r_ks(sorted_targets)
     if target_info.damage > target_info.hp + 15 and target_info.hp > 1 and target_info.hitChance > rks_chance then
       -- Prints("rks get pred", 4)
       
-      local rHit =  _G.DreamPred.GetPrediction(target_info.target, Data['R'], g_local)
-      
-      if rHit and rHit.hitChance*100 >= rks_chance then
-        Prints("KS: casting r hitchance is " ..  rHit.hitChance*100, 2)
-        spellbook:cast_spell(e_spell_slot.r, Data["R"].delay, rHit.castPosition.x, rHit.castPosition.y, rHit.castPosition.z)
+      local r_hit =  _G.DreamPred.GetPrediction(target_info.target, Data['R'], g_local)
+      local r_KS_castrate = menu:get_value(self.r_KS_rate) + 1
+
+      if r_hit and r_hit.rates[Rates[r_KS_castrate]] then
+        Prints("KS: casting r hitchance is " ..  r_hit.hitChance*100, 2)
+        spellbook:cast_spell(e_spell_slot.r, Data["R"].delay, r_hit.castPosition.x, r_hit.castPosition.y, r_hit.castPosition.z)
         Last_cast_time = game.game_time
         return true
       end
@@ -1397,10 +1436,12 @@ function Jinx:try_semi_auto_r(sorted_targets)
 
   local semi_auto_r_target = self:get_semi_auto_r_target(sorted_targets)
   if semi_auto_r_target then
-    local rHit =  _G.DreamPred.GetPrediction(semi_auto_r_target, Data['R'], g_local)
-    if rHit then 
+    local r_hit =  _G.DreamPred.GetPrediction(semi_auto_r_target, Data['R'], g_local)
+    -- local r_KS_rate = menu:get_value(self.r_KS_rate) + 1
+
+    if r_hit then
       Prints("Casting R semi auto", 2)
-      spellbook:cast_spell(e_spell_slot.r, Data["R"].delay, rHit.castPosition.x, rHit.castPosition.y, rHit.castPosition.z)
+      spellbook:cast_spell(e_spell_slot.r, Data["R"].delay, r_hit.castPosition.x, r_hit.castPosition.y, r_hit.castPosition.z)
       Last_cast_time = game.game_time
       return true
     end
@@ -1414,8 +1455,8 @@ function Jinx:try_r_multihit(sorted_targets)
   end
   Prints("in r multihit", 4)
   for i, enemy in pairs(sorted_targets) do
-    local rHit =  _G.DreamPred.GetPrediction(enemy.target, Data['R'], g_local)
-    if rHit then 
+    local r_hit =  _G.DreamPred.GetPrediction(enemy.target, Data['R'], g_local)
+    if r_hit then 
       local allies_to_follow = core.objects:get_ally_champs(800, enemy.target.origin) or 0
       local splashable_targets = core.objects:get_enemy_champs(400, enemy.target.origin)
       Prints("allies_to_follow: " .. #allies_to_follow .. " splashable_targets: " .. #splashable_targets, 4)
@@ -1429,11 +1470,12 @@ function Jinx:try_r_multihit(sorted_targets)
         end
       end
 
+      local r_KS_rate = menu:get_value(self.r_KS_rate) + 1
 
-      local do_multihit = #allies_to_follow >= 2 and good_splashables >= 2 and core.helper:get_percent_hp(enemy.target) <= 65  and rHit.hitchance*100 >= get_menu_val(self.r_KS_hitChance)
+      local do_multihit = #allies_to_follow >= 2 and good_splashables >= 2 and core.helper:get_percent_hp(enemy.target) <= 65 and r_hit.rates[Rates[r_KS_rate]]
       if do_multihit then
         Prints("Casting R to multihit with " .. allies_to_follow .. " allies and " .. good_splashables .. " enemies < 65%", 4)
-        local castPos = rHit.castPosition
+        local castPos = r_hit.castPosition
         spellbook:cast_spell(e_spell_slot.r, Data['R'].delay, castPos.x, castPos.y, castPos.z)      
         Last_cast_time = game.game_time
         return true
@@ -1495,6 +1537,7 @@ function Jinx:Has_stasis(enemy)
 end
 
 function Jinx:On_stasis_special_channel(index)
+  Prints("on special channel", 4)
   local enemy = game:get_object(index)
   if enemy then
     local has_stasis_buff, stasis_end_time = self:Has_stasis(enemy)
@@ -1518,9 +1561,12 @@ function Jinx:On_stasis_special_channel(index)
           local time_to_cast_e = 0.9
           Prints("E stasis cast: " .. tostring(remaining_stasis_time), 2)
           if remaining_stasis_time <= time_to_cast_e then
-            local eHit = _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
-            if eHit and eHit.hitchance*100 >= 60 then
-              local castPos = eHit.castPosition
+            local e_hit = _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
+            local e_rate = menu:get_value(self.e_combo_rate) + 1
+
+
+            if e_hit and e_hit.rates[Rates[e_rate]] then
+              local castPos = e_hit.castPosition
               spellbook:cast_spell(e_spell_slot.e, Data['E'].delay, castPos.x, castPos.y, castPos.z)
     
               Last_cast_time = game.game_time
@@ -1537,10 +1583,11 @@ function Jinx:On_stasis_special_channel(index)
 
           if game.game_time >= time_to_cast_w and game.game_time <= time_to_cast_w + 0.25 then
             Prints("Stasis: casting w for stasis game.game_time:" .. tostring(game.game_time), 2)
-            local wHit = _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
-            if wHit and wHit.hitchance*100 >= 60 then
-              local castPos = wHit.castPosition
-              Prints("stasis: casting w hitchance is " .. wHit.hitchance*100, 2)
+            local w_hit = _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
+            
+            if w_hit and self:should_try_w_hit_pred(w_hit) then
+              local castPos = w_hit.castPosition
+              Prints("stasis: casting w hitchance is " .. w_hit.hitchance*100, 2)
               spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)   
               Last_cast_time = game.game_time
               return true
@@ -1595,7 +1642,9 @@ function Jinx:On_cc_special_channel(index)
         
         if get_menu_val(self.e_auto) and core.objects:can_cast(e_spell_slot.e) and Data:in_range('E', enemy) then
           local e_hit =  _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
-          if e_hit and e_hit.hitChance*100 >= 65 then
+          local e_rate = menu:get_value(self.e_combo_rate) + 1
+          
+          if e_hit and e_hit.rates[Rates[e_rate]] then
 
           local castPos = e_hit.castPosition
           spellbook:cast_spell(e_spell_slot.e, Data['E'].delay, castPos.x, castPos.y, castPos.z)
@@ -1606,9 +1655,9 @@ function Jinx:On_cc_special_channel(index)
         Prints("lets cast something 2", 2)
         if get_menu_val(self.w_auto) and core.objects:can_cast(e_spell_slot.w) and Data:in_range('W', enemy) then
 
-          local wHit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
-          if wHit and wHit.hitChance*100 >= 65  then
-            local castPos = wHit.castPosition
+          local w_hit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
+          if w_hit and self:should_try_w_hit_pred(w_hit) then
+            local castPos = w_hit.castPosition
             spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
             Last_cast_time = game.game_time
           end
@@ -1621,11 +1670,12 @@ end
 Recalling = {}
 
 function Jinx:ProcessRecall(obj, tp_duration, tp_name, status)
+  Prints("process recall", 2)
   for i, recall in ipairs(Recalling) do
     local target = game:get_object(recall.champ)
 
     if game.game_time > recall.end_time or (target.is_visible and not target.is_recalling or target.is_dead) then
-      print("removing recall: " .. target.object_name)
+      Prints("removing recall: " .. target.object_name, 2)
       table.remove(Recalling, i)
     end
   end
@@ -1652,7 +1702,7 @@ function Jinx:ProcessRecall(obj, tp_duration, tp_name, status)
             Recalling[recallIndex] = recallData
           else
             -- Add new recall
-            Prints("adding recall: " .. obj_hero.object_name .. " end time: " .. tostring(end_time), 3)
+            Prints("adding recall: " .. obj_hero.object_name .. " end time: " .. tostring(end_time), 2)
             table.insert(Recalling, recallData)
           end
         end
@@ -1682,8 +1732,8 @@ function Jinx:calculate_projectile_travel_time(distance)
   return time
 end
 function Jinx:baseult()
-
-  if Recalling and #Recalling == 0 then return end
+  Prints("baseult in", 4)
+  if Recalling and #Recalling == 0 then  Prints("baseult no", 4) return end
   Prints("entering baseult check", 4)
   local should_baseUlt = get_menu_val(self.r_auto_base_ult_vision) 
   Prints("should_baseUlt: " .. tostring(should_baseUlt), 4)
@@ -1696,11 +1746,11 @@ function Jinx:baseult()
 
 
   
-  if not should_baseUlt then return end
-  if too_close or controldown or not can_cast then return end
-  Prints("look for recall ult: " .. tostring(should_baseUlt), 3)
-  -- self:ProcessRecall()
-  -- if #Recalling == 0 then return end
+  if not should_baseUlt then Prints("shoudnt baseult", 2) return false end
+  if too_close or controldown or not can_cast then Prints("cant cast/tooclose/holding contorl", 2) return false end
+  Prints("look for recall ult: " .. tostring(should_baseUlt), 4)
+  self:ProcessRecall()
+  if #Recalling == 0 then return end
   -- Prints("still baseult check", 3)
 
   local delay = 0.015
@@ -1711,6 +1761,7 @@ function Jinx:baseult()
     -- local rdmg = 50000000
 
     if enemy.health + 30 > rdmg then
+      Prints("should recall ult but they are not low :(", 3)
       return false
     end
 
@@ -1729,15 +1780,14 @@ function Jinx:baseult()
     local time_To_hit_base = 0.5 + self:calculate_projectile_travel_time(base_dist) + delay
 
     if (remainingTime >= time_To_hit_enemy) or (remainingTime >= time_To_hit_base) then
-      Prints("looking for a recall ult... " .. tostring(remainingTime),3)
+      Prints("looking for a recall ult... " .. tostring(remainingTime),2)
       -- start with try to hit enemy
-      Prints("is collide check ...")
+      Prints("is collide check ...", 2)
       local is_colliding = core.vec3_util:is_colliding(g_local.origin, recall.origin, enemy, Data['R'].Width)
-      Prints("is collide check done")
+      Prints("is collide check done", 2)
       if not is_colliding then
         Prints("trying to hit enemy with recall ulti hold control to cancel .. " .. time_To_hit_enemy, 2)
         if remainingTime >= time_To_hit_enemy and remainingTime <= 6 then
-
           Prints("-=--==-=--= RECALL ULT =--=-==-=--=", 2)
           local castPosition = recall.origin
           spellbook:cast_spell(e_spell_slot.r, Data['R'].delay, castPosition.x, castPosition.y, castPosition.z)
@@ -1757,6 +1807,9 @@ function Jinx:baseult()
       end
     end
   end
+  -- Prints("baseult out", 2)
+
+  return false
 end
 
 function Jinx:chainCC()
@@ -1835,7 +1888,7 @@ function Jinx:on_dash(enemy, dash_info)
             if Get_distance(g_local.origin, cai.path_end) > 300 then
               Prints("attempted to cast W", 4)
               local w_hit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
-              if w_hit and w_hit.hitChance*100 >= 65 then
+              if w_hit and self:should_try_w_hit_pred(w_hit) then
                 Prints("cast w on dash " .. w_hit.hitChance*100, 2)
                 local castPos = w_hit.castPosition
                 spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
@@ -2085,10 +2138,10 @@ function Jinx:visualize_spell_range()
     local fill = core.color:new(120, 120, 255, 40)
     if not Data['AA'].rocket_launcher then
       core.vec3_util:drawCircleFull(g_local.origin, fill, Data['AA'].short_range)
-      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.white, Data['AA'].short_range)
+      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.w_hite, Data['AA'].short_range)
     else
       core.vec3_util:drawCircleFull(g_local.origin, fill, Data['AA'].long_range)
-      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.white, Data['AA'].long_range)
+      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.w_hite, Data['AA'].long_range)
     end
   end
   --draw w range
@@ -2127,7 +2180,7 @@ end
 
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
 function Jinx:on_tick_always()
-    -- Prints("tick...", 4)
+    Prints("tick...", 4)
     if not get_menu_val(self.Jinx_enabled) or not g_local.is_alive then return end
     if self:ready(e_spell_slot.q) then
         self:spell_q()
@@ -2150,11 +2203,13 @@ function Jinx:on_tick_always()
     if self:ready(e_spell_slot.r) and get_menu_val(self.r_auto_base_ult_vision) then
       self:baseult()
     else
-      Prints("clearing recall list out ready" , 4)
       if #Recalling > 0 then
-        Recalling = {}
+        -- Prints("clearing recall list out ready bcus r not ready" , 2)
+        -- Recalling = {}
       end
     end
+
+    --chain cc
     self:chainCC()
 end
 
