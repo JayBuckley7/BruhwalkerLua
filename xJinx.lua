@@ -587,25 +587,25 @@ function Jinx:init()
 	local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua.version.txt"
 
 
-    do
-		local function AutoUpdate()
-			http:get_async(version_url, function(success, web_version)
-				console:log(LuaName .. ".lua Vers: "..LuaVersion)
-				console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
-				if tonumber(web_version) <= LuaVersion then
-					console:log(LuaName .. " Successfully Loaded..")
-				else
-					http:download_file_async(lua_url, lua_file_name, function(success)
-						if success then
-							console:log(LuaName .. " Update available..")
-							console:log("Please Reload via F5!..")
-						end
-					end)
-				end
-			end)
-		end
-		AutoUpdate()
-	end
+  --   do
+	-- 	local function AutoUpdate()
+	-- 		http:get_async(version_url, function(success, web_version)
+	-- 			console:log(LuaName .. ".lua Vers: "..LuaVersion)
+	-- 			console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
+	-- 			if tonumber(web_version) <= LuaVersion then
+	-- 				console:log(LuaName .. " Successfully Loaded..")
+	-- 			else
+	-- 				http:download_file_async(lua_url, lua_file_name, function(success)
+	-- 					if success then
+	-- 						console:log(LuaName .. " Update available..")
+	-- 						console:log("Please Reload via F5!..")
+	-- 					end
+	-- 				end)
+	-- 			end
+	-- 		end)
+	-- 	end
+	-- 	-- AutoUpdate()
+	-- end
 
     self.Q = { range = 800 }
     self.W = { range = 925 }
@@ -639,7 +639,7 @@ function Jinx:init()
     self:registerPS()
     client:set_event_callback("on_tick_always", function() Data:refresh_data()  end)
     client:set_event_callback("on_tick_always", function() self:on_tick_always() end)
-    -- client:set_event_callback("on_post_attack", function() self:weave_auto_w() end)
+    client:set_event_callback("on_post_attack", function() self:weave_auto_w() end)
     client:set_event_callback("on_draw", function() self:on_draw() end)
 
     client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
@@ -1031,39 +1031,62 @@ end
   if not self:ready(e_spell_slot.w) then return false end
   local mode = combo:get_mode()
   local should_w_combo = (mode == Combo_key and get_menu_val(self.w_combo))
+  local prev_target = orbwalker:get_orbwalker_target()
+  local should_w_Jungle_clear = (mode == Clear_key and get_menu_val(self.q_clear_aoe) and prev_target.is_jungle_minion)
+
+
   --if not should then false
-  if not should_w_combo then return false end
+  if not should_w_combo and not should_w_Jungle_clear  then return false end
 
-  
-  local target = self:Get_target()
-  local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
-  if not in_Q_range then return false end
+  if should_w_combo then
+    local target = self:Get_target()
+    local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
+    if not in_Q_range then return false end
 
-  local full_combo = game:is_key_down(17)
-  local should_w_in_aa_range = get_menu_val(self.w_combo_not_in_range)
-  if mode == Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
+    local full_combo = game:is_key_down(17)
+    local should_w_in_aa_range = get_menu_val(self.w_combo_not_in_range)
+    if mode == Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
 
-  local aadmg = core.damagelib:calc_aa_dmg(g_local, target)
-  local aa_to_kill = std_math.ceil(target.health / aadmg)
-  local near_death = aa_to_kill <= 2
-  if full_combo and mode == Combo_key then should_w_in_aa_range = true end
+    local aadmg = core.damagelib:calc_aa_dmg(g_local, target)
+    local aa_to_kill = std_math.ceil(target.health / aadmg)
+    local near_death = aa_to_kill <= 2
+    if full_combo and mode == Combo_key then should_w_in_aa_range = true end
 
 
-  if in_Q_range then
-    if should_w_in_aa_range and not near_death then
-      Prints("weave auto w", 2)
-      local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
-      if wHit and wHit.hitChance*100 >= self:get_w_hitChance_setting() then
-        Prints("combo: casting w hitChance is " .. chanceStrings[wHit.hitChance], 2)
-        local castPos = wHit.castPosition
+    if in_Q_range then
+      if should_w_in_aa_range and not near_death then
+        Prints("weave auto w", 2)
+        local wHit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
+        if wHit and wHit.hitChance*100 >= self:get_w_hitChance_setting() then
+          Prints("combo: casting w hitChance is " .. chanceStrings[wHit.hitChance], 2)
+          local castPos = wHit.castPosition
+      
+        spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
     
-       spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
-  
-        return true
+          return true
+        end
       end
     end
+    return false
   end
-  return false
+
+  if should_w_Jungle_clear then
+    local in_Q_range = prev_target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
+    if not in_Q_range then return false end
+
+    local aadmg = core.damagelib:calc_aa_dmg(g_local, prev_target)
+    local aa_to_kill = std_math.ceil(prev_target.health / aadmg)
+    local near_death = aa_to_kill <= 2
+
+    if in_Q_range then
+      if not near_death then
+        Prints("farm: casting w hitChance is ", 2)
+        local castPos = prev_target.origin
+        spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
+      end
+    end
+
+  end
  end
 
  function Jinx:w_combo_harass_logic()
@@ -1129,7 +1152,7 @@ function Jinx:spell_w()
   -- not evade:is_evading() and
   if  target and g_local:distance_to(target.origin) <= Data['W'].range then
     -- w Combo / harss logic
-    if (should_w_combo or should_w_harass) and self:w_combo_harass_logic() then return true end
+  if (should_w_combo or should_w_harass) and self:w_combo_harass_logic() then return true end
     --W KS logic
     if should_w_ks and self:w_ks_logic() then return true end
   end

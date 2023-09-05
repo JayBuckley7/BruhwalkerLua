@@ -14,10 +14,6 @@ if not file_manager:file_exists(file_name) then
    console:log("Please Reload with F5")
 end
 
---Initialization line:
-local ml = require "VectorMath"
-
-
 
 e_spell_slot = {
 	q = SLOT_Q,
@@ -322,9 +318,9 @@ local vec3Util = class({
 		for i, enemy in pairs(game.players) do
 			if  enemy and enemy.is_enemy and enemy.is_alive and target.champ_name ~= enemy.champ_name then       
 				local ProjectionInfo = self:project_vector_on_segment(start_pos, end_pos, enemy.origin)								
-				local DistSegToEnemy = ml.GetDistanceSqr2(ProjectionInfo.PointSegment, enemy.origin)
-				local DistToBase = ml.GetDistanceSqr2(start_pos,end_pos)
-				local EnemyDistToBase = ml.GetDistanceSqr2(start_pos, enemy.origin)
+				local DistSegToEnemy = vec3Util.distance(ProjectionInfo.PointSegment, enemy.origin)
+				local DistToBase = vec3Util:distance(start_pos,end_pos)
+				local EnemyDistToBase = vec3Util:distance(start_pos, enemy.origin)
 				if ProjectionInfo.IsOnSegment and DistSegToEnemy < width + 65 and DistToBase > EnemyDistToBase then             
 					return true
 				end
@@ -1984,7 +1980,7 @@ local target_selector = class({
 			for i, enemy in ipairs(game.players) do
 				if enemy and enemy.is_enemy and xHelper:is_alive(enemy) and xHelper:is_valid(enemy) and not xHelper:is_invincible(enemy) then
 					local eorgin = game:world_to_screen_2(enemy.origin.x, enemy.origin.y, enemy.origin.z)
-					local dist = ml.GetDistanceSqr2(mousePos, eorgin)
+					local dist = vec3Util:distance(mousePos, eorgin)
 					if dist < maxDistance and dist < lowestDistance then
 						target = enemy
 						lowestDistance = dist
@@ -2798,25 +2794,25 @@ local x = class({
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
 		local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua.version.txt"
 	
-		do
-			local function AutoUpdate()
-				http:get_async(version_url, function(success, web_version)
-					console:log(LuaName .. ".lua Vers: "..LuaVersion)
-					console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
-					if tonumber(web_version) <= LuaVersion then
-						console:log(LuaName .. " Successfully Loaded..")
-					else
-						http:download_file_async(lua_url, lua_file_name, function(success)
-							if success then
-								console:log(LuaName .. " Update available..")
-								console:log("Please Reload via F5!..")
-							end
-						end)
-					end
-				end)
-			end
-			AutoUpdate()
-		end
+		-- do
+		-- 	local function AutoUpdate()
+		-- 		http:get_async(version_url, function(success, web_version)
+		-- 			console:log(LuaName .. ".lua Vers: "..LuaVersion)
+		-- 			console:log(LuaName .. ".Web Vers: "..tonumber(web_version))
+		-- 			if tonumber(web_version) <= LuaVersion then
+		-- 				console:log(LuaName .. " Successfully Loaded..")
+		-- 			else
+		-- 				http:download_file_async(lua_url, lua_file_name, function(success)
+		-- 					if success then
+		-- 						console:log(LuaName .. " Update available..")
+		-- 						console:log("Please Reload via F5!..")
+		-- 					end
+		-- 				end)
+		-- 			end
+		-- 		end)
+		-- 	end
+		-- 	-- AutoUpdate()
+		-- end
 		print("=-=--=-=-=-=-==-=--==-=-=--=-==--==-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-=--=-")
 		self.util = util:new()
 		self.Colors = util.Colors
