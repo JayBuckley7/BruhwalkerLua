@@ -2381,10 +2381,14 @@ local visualizer = class({
 		self.checkboxMinionDmg = menu:add_checkbox("draw Minions", self.min_sect, 1)
 		self.checkboxVisualDmg = menu:add_checkbox("damage visual", self.vis_sect, 1)
 		self.visualizer_split_colors = menu:add_checkbox("^ Split colors", self.vis_sect, 1)
+		self.visualizer_killable_colors = menu:add_checkbox("^ killable colors", self.vis_sect, 1)
+
 		self.visualizer_show_combined_bars = menu:add_checkbox("Show combined bars", self.vis_sect, 1)
 		self.visualizer_show_stacked_bars = menu:add_checkbox("Show stacked bars", self.vis_sect, 1)
 		self.visualizer_visualize_autos = menu:add_checkbox("Visualize Autos", self.vis_sect, 1)
+		
 		self.visualizer_autos_slider = menu:add_slider("^x number of autos", self.vis_sect, 1, 5, 3)
+		self.visualizer_dynamic_autos = menu:add_checkbox("dynamic mode", self.vis_sect, 1)
 		self.visualizer_visualize_q = menu:add_checkbox("Visualize Q", self.vis_sect, 1)
 		self.visualizer_visualize_w = menu:add_checkbox("Visualize W", self.vis_sect, 1)
 		self.visualizer_visualize_e = menu:add_checkbox("Visualize E", self.vis_sect, 1)
@@ -2444,7 +2448,16 @@ local visualizer = class({
 
 		local remaining_health = enemy.health / enemy.max_health
 		if combodmg > 0 then
-			remaining_health = DrawDamageSection(self.util.Colors.transparent.purple, combodmg, remaining_health)
+			-- if kill colors
+			if get_menu_val(self.visualizer_killable_colors) then
+				if enemy.health < combodmg  then
+					remaining_health = DrawDamageSection(self.util.Colors.transparent.red, combodmg, remaining_health)
+				else
+					remaining_health = DrawDamageSection(self.util.Colors.transparent.darkGreen, combodmg, remaining_health)
+				end
+			else	
+				remaining_health = DrawDamageSection(self.util.Colors.transparent.purple, combodmg, remaining_health)
+			end
 		end
 		if aadmg > 0 then
 			remaining_health = DrawDamageSection(self.util.Colors.transparent.green, aadmg, remaining_health)
@@ -2587,7 +2600,15 @@ local visualizer = class({
 		local wdmg = 0
 		local edmg = 0
 		local rdmg = 0
-		local aadmg = base_auto_dmg * menu:get_value(self.visualizer_autos_slider)
+
+		local num_autos = menu:get_value(self.visualizer_autos_slider)
+		if get_menu_val(self.visualizer_dynamic_autos) then 
+			local distance = vec3Util:distance(g_local.origin, enemy.origin)
+			local slope = 0.001538
+			num_autos = 3 + slope * (distance - 850)
+		end
+		
+		local aadmg = base_auto_dmg * num_autos
 		-- if is
 		if self.objects:can_cast(e_spell_slot.q) then
 			qdmg = self.damagelib:calc_spell_dmg("Q", g_local, enemy, 1, self.objects:get_spell_level(e_spell_slot.q))
