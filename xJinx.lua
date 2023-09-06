@@ -605,7 +605,7 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 0.5
+  local LuaVersion = 0.6
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
@@ -945,7 +945,7 @@ function Jinx:deny_turret_harass(pos)
 end
 
 function Jinx:exit_rocket_logic()
-    Prints("exit rocket logic", 2)
+    Prints("exit rocket logic", 4)
     local mode = combo:get_mode()
 
     if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Combo_key and mode ~= Idle_key and get_menu_val(self.q_clear) then
@@ -1664,7 +1664,7 @@ end
 Recalling = {}
 
 function Jinx:ProcessRecall(obj, tp_duration, tp_name, status)
-  Prints("process recall", 2)
+  Prints("process recall", 4)
   for i, recall in ipairs(Recalling) do
     local target = game:get_object(recall.champ)
 
