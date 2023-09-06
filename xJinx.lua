@@ -351,6 +351,8 @@ function Jinx:add_jmenus()
 
     -- Harass
     self.q_harass = menu:add_checkbox("use Q", sections.harass, 1)
+    -- Q harass mana slider
+    self.q_harass_mana = menu:add_slider("Q harass Mana %", sections.harass, 1, 100, 40)
     self.checkboxJinxSplashHarass = menu:add_checkbox("extend aa range with Q splash", sections.harass, 1)
     self.w_harass = menu:add_checkbox("use W", sections.harass, 1)
     self.w_harass_not_in_range = menu:add_checkbox("^ if outside of aa range", sections.harass, 1)
@@ -1067,13 +1069,15 @@ function Jinx:combo_harass_q()
 function Jinx:spell_q()
     Prints("q spell in", 4)
     local mode = combo:get_mode()
+    local mana_req = menu:get_value(self.q_harass_mana)
+    local mana_perc = g_local.mana / g_local.max_mana * 100 
     
     -- Prints("mode: " .. tostring(mode), 3)
     -- Combo logic
     if mode == Combo_key and get_menu_val(self.q_combo) and self:combo_harass_q() then return true end
 
     -- Harass logic
-    if mode == Harass_key and get_menu_val(self.q_harass) and self:combo_harass_q() then return true end
+    if mode == Harass_key and get_menu_val(self.q_harass) and mana_req <= mana_perc  and self:combo_harass_q() then return true end
 
     -- Farm logic -- extends auto range to hit dying minions if in minigun form
     if (mode == Clear_key or mode == Harass_key or mode == Lasthit) and get_menu_val(self.q_clear) and save_minion_with_q() then return true end
@@ -2188,7 +2192,10 @@ end
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
 function Jinx:on_tick_always()
     Prints("tick...", 4)
-    if not get_menu_val(self.Jinx_enabled) or not g_local.is_alive then return end
+    if not get_menu_val(self.Jinx_enabled) then return end
+    if (not g_local.is_alive) or g_local.is_recalling or (not client:is_focus())  then return false end
+
+
     if self:ready(e_spell_slot.q) then
         self:spell_q()
     end
