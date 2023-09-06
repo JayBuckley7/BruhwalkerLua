@@ -2380,18 +2380,18 @@ local visualizer = class({
 		self.min_sect = menu:add_subcategory("Minions", self.nav)
 		self.checkboxMinionDmg = menu:add_checkbox("draw Minions", self.min_sect, 1)
 		self.checkboxVisualDmg = menu:add_checkbox("damage visual", self.vis_sect, 1)
-		self.visualizer_split_colors = menu:add_checkbox("^ Split colors", self.vis_sect, 1)
+		self.visualizer_split_colors = menu:add_checkbox("^ Split colors", self.vis_sect, 0)
 		self.visualizer_killable_colors = menu:add_checkbox("^ killable colors", self.vis_sect, 1)
 
 		self.visualizer_show_combined_bars = menu:add_checkbox("Show combined bars", self.vis_sect, 1)
-		self.visualizer_show_stacked_bars = menu:add_checkbox("Show stacked bars", self.vis_sect, 1)
+		self.visualizer_show_stacked_bars = menu:add_checkbox("Show stacked bars", self.vis_sect, 0)
 		self.visualizer_visualize_autos = menu:add_checkbox("Visualize Autos", self.vis_sect, 1)
 		
 		self.visualizer_autos_slider = menu:add_slider("^x number of autos", self.vis_sect, 1, 5, 3)
 		self.visualizer_dynamic_autos = menu:add_checkbox("dynamic mode", self.vis_sect, 1)
-		self.visualizer_visualize_q = menu:add_checkbox("Visualize Q", self.vis_sect, 1)
+		self.visualizer_visualize_q = menu:add_checkbox("Visualize Q", self.vis_sect, 0)
 		self.visualizer_visualize_w = menu:add_checkbox("Visualize W", self.vis_sect, 1)
-		self.visualizer_visualize_e = menu:add_checkbox("Visualize E", self.vis_sect, 1)
+		self.visualizer_visualize_e = menu:add_checkbox("Visualize E", self.vis_sect, 0)
 		self.visualizer_visualize_r = menu:add_checkbox("Visualize R", self.vis_sect, 1)
 		self.visualizer_show_text = menu:add_checkbox("Show text", self.vis_sect, 1)
 	end,
