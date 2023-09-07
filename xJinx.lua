@@ -607,7 +607,7 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 0.6
+  local LuaVersion = 0.7
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
@@ -989,13 +989,13 @@ function Jinx:exit_rocket_logic()
           Last_Q_swap_time = game.game_time
           return true
         end
-  --     else
-  --       if Data['AA'].rocket_launcher then
-  --         Prints("q AOE only hits " .. tostring(nearby) .. "minion[s]", 2)
-  --         g_input:cast_spell(e_spell_slot.q)
-  --         Last_Q_swap_time = game.game_time
-  --         return true
-  --       end
+      else
+        if Data['AA'].rocket_launcher then
+          Prints("q AOE only hits " .. tostring(nearby) .. "minion[s]", 2)
+          spellbook:cast_spell(e_spell_slot.q)
+          Last_Q_swap_time = game.game_time
+          return true
+        end
         end
       end
     
