@@ -631,7 +631,7 @@ function Jinx:init()
 				end
 			end)
 		end
-		-- AutoUpdate()
+		AutoUpdate()
 	end
 
     self.Q = { range = 800 }
