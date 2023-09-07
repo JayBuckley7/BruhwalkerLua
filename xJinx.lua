@@ -2124,7 +2124,7 @@ function Jinx:visualize_spell_range()
   if get_menu_val(self.checkboxDrawQAlt) then
     if Data['AA'].rocket_launcher then
       -- Prints("draw long", 3)
-      core.vec3_util:drawCircle(g_local.origin, Colors.solid.blue, Data['AA'].short_range, "QAltRangeS")
+      core.vec3_util:drawCircle(g_local.origin, Colors.solid.blue, Data['AA'].short_range)
     else
       -- Prints("draw short", 3)
       local col = Colors.solid.blue
@@ -2137,10 +2137,10 @@ function Jinx:visualize_spell_range()
     local fill = core.color:new(120, 120, 255, 40)
     if not Data['AA'].rocket_launcher then
       core.vec3_util:drawCircleFull(g_local.origin, fill, Data['AA'].short_range)
-      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.w_hite, Data['AA'].short_range)
+      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.white, Data['AA'].short_range)
     else
       core.vec3_util:drawCircleFull(g_local.origin, fill, Data['AA'].long_range)
-      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.w_hite, Data['AA'].long_range)
+      core.vec3_util:drawCircle(g_local.origin, Colors.transparent.white, Data['AA'].long_range)
     end
   end
   --draw w range
