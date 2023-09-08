@@ -432,7 +432,7 @@ function Jinx:add_jmenus()
     -- Misc
     self.checkboxManR = menu:add_checkbox("manual ult", sections.misc, 1)
 
-    self.checkboxAntiTurretTechGlobal = menu:add_checkbox("deny turret walking in turret aggro", sections.misc, 1)
+    self.checkboxAntiTurretTechGlobal = menu:add_checkbox("deny turret walking in turret aggro (always)", sections.misc, 1)
     self.checkboxAntiTurretTechHarass = menu:add_checkbox("^ in harass", sections.misc, 1)
     self.checkboxAntiTurretTechCombo = menu:add_checkbox("^ in combo", sections.misc, 0)
 
@@ -476,7 +476,7 @@ function Jinx:registerPS()
   core.permashow:register("Fast W", "Fast W", "shift")
   
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
-  core.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.checkboxAntiTurretTech)
+  core.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.checkboxAntiTurretTechGlobal)
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
   core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
 
@@ -957,12 +957,13 @@ local function Get_minions(range)
 end
 
 function Jinx:deny_turret_harass(pos)
+  Prints("DennyTurretInHarass", 1)
+  if not get_menu_val(self.checkboxAntiTurretTechGlobal) then print("end") end
 
-  if not get_menu_val(self.checkboxAntiTurretTechGlobal) then end
-
-  local should_deny_turret = 
-  (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == Harass_key) or
-  (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == Combo_key)
+  local should_deny_turret =
+    (get_menu_val(self.checkboxAntiTurretTechGlobal) and not get_menu_val(self.checkboxAntiTurretTechHarass) and not get_menu_val(self.checkboxAntiTurretTechCombo)) or
+    (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == Harass_key) or
+    (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == Combo_key)
 
 
 -- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
@@ -986,6 +987,7 @@ function Jinx:deny_turret_harass(pos)
     end
   return false
   end
+
 end
 
 function Jinx:exit_rocket_logic()
