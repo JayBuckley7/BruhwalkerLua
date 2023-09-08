@@ -1,4 +1,8 @@
 require("PKDamageLib")
+if not _G.DynastyOrb then
+	require("DynastyOrb")
+  end
+
 XCORE_VERSION = "9.1.5"
 XCORE_LUA_NAME = "xCore.lua"
 XCORE_REPO_BASE_URL = "https://raw.githubusercontent.com/xAIO-Slotted/xCore/main/"
@@ -135,6 +139,26 @@ local e_key = {
 	f1 = 112,
  }
 
+
+local mode = {
+	Combo_key = 1,
+	Harass_key = 2,
+	Clear_key = 3,
+	Lasthit = 4,
+	Freeze = 5,
+	Flee = 6,
+	Idle_key = 0,
+	Recalling = 0
+}
+
+local chance_strings = {
+	[0] = "low",
+	[1] = "medium",
+	[2] = "high",
+	[3] = "very_high",
+	[4] = "immobile"
+}
+
  local buff_type = {
 	Internal = 0,
 	Aura = 1,
@@ -176,6 +200,12 @@ local e_key = {
 	ClickProofToEnemies = 37,
 	Unkillable = 38
  }
+ local rates = { "slow", "instant", "very slow" }
+
+dancing = false
+state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
+top, mid, bot = nil, nil, nil
+
 
  --bw doesnt evaluate there menu cfgs to a number T_T
  function get_menu_val(cfg)
@@ -232,18 +262,18 @@ local vec2 = class({
 -- vec3
 --------------------------------------------------------------------------------
 
---- @class vec3
-local vec3 = class({
-	x = 0,
-	y = 0,
-	z = 0,
+-- --- @class vec3
+-- local vec3 = class({
+-- 	x = 0,
+-- 	y = 0,
+-- 	z = 0,
 
-	init = function(self,x,y,z)
-		self.x = x
-		self.y = y
-		self.z = z
-	end,
-})
+-- 	init = function(self,x,y,z)
+-- 		self.x = x
+-- 		self.y = y
+-- 		self.z = z
+-- 	end,
+-- })
 
 
 
@@ -252,6 +282,9 @@ local vec3 = class({
 -- Vec3 Utility
 
 --------------------------------------------------------------------------------
+
+
+
 
 --- @class vec3Util
 --- @field print fun(self:vec3Util, point:Vec3):nil
@@ -267,14 +300,57 @@ local vec3Util = class({
 	print = function(self, point)
 		print("x: " .. point.x .. " y: " .. point.y .. " z: " .. point.z)
 	end,
+	extend = function (self, v1, v2, dist)
+		local dx = v2.x - v1.x
+		local dy = v2.y - v1.y
+		local dz = v2.z - v1.z
+		local length = std_math.sqrt(dx * dx + dy * dy + dz * dz)
+		
 
-	rotate = function(self, origin, point, angle)
-		local angle = angle * (math.pi / 180)
-		local rotatedX = math.cos(angle) * (point.x - origin.x) - math.sin(angle) * (point.z - origin.z) + origin.x
-		local rotatedZ = math.sin(angle) * (point.x - origin.x) + math.cos(angle) * (point.z - origin.z) + origin.z
-		return vec3:new(rotatedX, point.y, rotatedZ)
+		-- Check if length is zero to avoid division by zero
+		if length == 0 then
+			return vec3.new(v1.x,v1.y,v1.z)
+		end
+		local scale = dist / length
+		local _x = v1.x + dx * scale
+		local _y = v1.y + dy * scale
+		local _z = v1.z + dz * scale
+		local ret = vec3.new(_x, _y, _z)
+
+		return ret
+		
 	end,
-
+	subtract = function(self, v1, v2)
+		local x = v1.x - v2.x
+		local y = v1.y - v2.y
+		local z = v1.z - v2.z
+		return vec3.new(x, y, z)
+	end,
+	rotate = function(self, origin, point, angle)
+		local angle = angle * (std_math.pi / 180)
+		local rotatedX = std_math.cos(angle) * (point.x - origin.x) - std_math.sin(angle) * (point.z - origin.z) + origin.x
+		local rotatedZ = std_math.sin(angle) * (point.x - origin.x) + std_math.cos(angle) * (point.z - origin.z) + origin.z
+		return vec3.new(rotatedX, point.y, rotatedZ)
+	end,
+	normalize = function(self, v)
+		local dx = v.x
+		local dy = v.y
+		local dz = v.z
+		local length = math.sqrt(dx * dx + dy * dy + dz * dz)
+		
+		-- Check if length is zero to avoid division by zero
+		if length == 0 then
+			return {
+				x = 0,
+				y = 0,
+				z = 0
+			}
+		end
+		local x = dx / length
+		local y = dy / length
+		local z =  dz / length
+		return vec3.new(x, y, z)
+	end,
 	distance = function(self, start_point, end_point)
 		--print all types
 		-- console:log("start_point: " .. type(start_point))
@@ -285,31 +361,31 @@ local vec3Util = class({
 		local dz = start_point.z - end_point.z
 		
 		local distance_squared = dx*dx + dy*dy + dz*dz
-		return math.sqrt(distance_squared)
-	  end,
+		return std_math.sqrt(distance_squared)
+	end,
 
 	translate = function(self, origin, offsetX, offsetZ)
 		local translatedX = origin.x + offsetX
 		local translatedZ = origin.z + offsetZ
-		return vec3:new(translatedX, origin.y, translatedZ)
+		return vec3.new(translatedX, origin.y, translatedZ)
 	end,
 
 	translateX = function(self, origin, offsetX)
 		local translatedX = origin.x + offsetX
-		return vec3:new(translatedX, origin.y, origin.z)
+		return vec3.new(translatedX, origin.y, origin.z)
 	end,
 
 	translateZ = function(self, origin, offsetZ)
 		local translatedZ = origin.z + offsetZ
-		return vec3:new(origin.x, origin.y, translatedZ)
+		return vec3.new(origin.x, origin.y, translatedZ)
 	end,
 	project_vector_on_segment = function(self, v1, v2, v)
 		local cx, cy, ax, ay, bx, by = v.x, v.z, v1.x, v1.z, v2.x, v2.z
 		local rL = ((cx - ax) * (bx - ax) + (cy - ay) * (by - ay)) / ((bx - ax) ^ 2 + (by - ay) ^ 2)
-		local pointLine = vec3:new(ax + rL * (bx - ax), 0, ay + rL * (by - ay))
+		local pointLine = vec3.new(ax + rL * (bx - ax), 0, ay + rL * (by - ay))
 		local rS = rL < 0 and 0 or (rL > 1 and 1 or rL)
 		local isOnSegment = rS == rL
-		local pointSegment = isOnSegment and pointLine or vec3:new(ax + rS * (bx - ax), 0, ay + rS * (by - ay))
+		local pointSegment = isOnSegment and pointLine or vec3.new(ax + rS * (bx - ax), 0, ay + rS * (by - ay))
 
 		return {PointSegment = pointSegment, PointLine = pointLine, IsOnSegment = isOnSegment}
 	end,
@@ -345,20 +421,20 @@ local vec3Util = class({
 
 	drawBox = function(self, start_pos, end_pos, width, color, thickness)
 		-- Calculate the direction vector
-		local dir = vec3:new(end_pos.x - start_pos.x, 0, end_pos.z - start_pos.z)
+		local dir = vec3.new(end_pos.x - start_pos.x, 0, end_pos.z - start_pos.z)
 		dir = dir:normalized()
 
 		-- Calculate the half width vector
-		local half_width_vec = vec3:new(-dir.z * (width), 0, dir.x * (width))
+		local half_width_vec = vec3.new(-dir.z * (width), 0, dir.x * (width))
 
 		-- Calculate the corner points of the box
-		local p1 = vec3:new(start_pos.x + half_width_vec.x, start_pos.y, start_pos.z + half_width_vec.z)
+		local p1 = vec3.new(start_pos.x + half_width_vec.x, start_pos.y, start_pos.z + half_width_vec.z)
 		local p1xy = game:world_to_screen_2(p1.x, p1.y, p1.z)
-		local p2 = vec3:new(start_pos.x - half_width_vec.x, start_pos.y, start_pos.z - half_width_vec.z)
+		local p2 = vec3.new(start_pos.x - half_width_vec.x, start_pos.y, start_pos.z - half_width_vec.z)
 		local p2xy = game:world_to_screen_2(p2.x, p2.y, p2.z)
-		local p3 = vec3:new(end_pos.x + half_width_vec.x, end_pos.y, end_pos.z + half_width_vec.z)
+		local p3 = vec3.new(end_pos.x + half_width_vec.x, end_pos.y, end_pos.z + half_width_vec.z)
 		local p3xy = game:world_to_screen_2(p3.x, p3.y, p3.z)
-		local p4 = vec3:new(end_pos.x - half_width_vec.x, end_pos.y, end_pos.z - half_width_vec.z)
+		local p4 = vec3.new(end_pos.x - half_width_vec.x, end_pos.y, end_pos.z - half_width_vec.z)
 		local p4xy = game:world_to_screen_2(p4.x, p4.y, p4.z)
 
 		-- Draw lines connecting the corner points
@@ -400,7 +476,7 @@ local vec2Util = class({
 		local angle = angle * (math.pi / 180)
 		local rotatedX = math.cos(angle) * (point.x - origin.x) - math.sin(angle) * (point.y - origin.y) + origin.x
 		local rotatedY = math.sin(angle) * (point.x - origin.x) + math.cos(angle) * (point.y - origin.y) + origin.y
-		return vec3:new(rotatedX, rotatedY)
+		return vec3.new(rotatedX, rotatedY)
 	end,
 
 	translate = function(self, origin, offsetX, offsetY)
@@ -716,10 +792,10 @@ local objects = class({
 			-- console:log("get tea1m: " .. team .. " color: " .. color)
 			-- console:debug_log("get tea1m: " .. team .. " color: " .. color)
 			local rift_locale = self.util.rift_locations["Red_Recall"]
-			local pos = vec3:new(rift_locale.x, rift_locale.y, rift_locale.z)
+			local pos = vec3.new(rift_locale.x, rift_locale.y, rift_locale.z)
 			baseult_pos = pos
 		elseif color == "blue" then
-			baseult_pos = vec3:new(self.util.rift_locations["Blue_Recall"].x, self.util.rift_locations["Blue_Recall"].y, self.util.rift_locations["Blue_Recall"].z)
+			baseult_pos = vec3.new(self.util.rift_locations["Blue_Recall"].x, self.util.rift_locations["Blue_Recall"].y, self.util.rift_locations["Blue_Recall"].z)
 		end
 		-- console:log("baseult_pos: " .. tostring(baseult_pos.x) .. " " .. tostring(baseult_pos.y) .. " " .. tostring(baseult_pos.z))
 		return baseult_pos
@@ -2810,6 +2886,75 @@ local debug = class({
 
 })
 
+--------------------------------------------------------------------------------
+
+-- Utils
+--------------------------------------------------------------------------------
+
+local utils = class({
+	nav = nil,
+	XutilMenuCat = nil,
+
+	init = function(self,vec3_util, util, xHelper, math, objects, damagelib,debug,permashow)
+		self.Last_cast_time = game.game_time
+		self.helper = xHelper
+		self.math = math
+		self.util = util
+		self.damagelib = damagelib
+		self.objects = objects
+		self.debug = debug
+		self.permashow = permashow
+		self.vec3_util = vec3_util
+		-- -- Menus
+		if XutilMenuCat == nil then XutilMenuCat = menu:add_category("xUtils") end
+		self.nav = XutilMenuCat
+
+		self.anti_turret = menu:add_subcategory("anti turret walker", self.nav)
+
+		self.checkboxAntiTurretTechGlobal = menu:add_checkbox("deny turret walking in turret aggro (always)", self.anti_turret, 1)
+		self.checkboxAntiTurretTechHarass = menu:add_checkbox("^ in harass", self.anti_turret, 1)
+		self.checkboxAntiTurretTechCombo = menu:add_checkbox("^ in combo", self.anti_turret, 0)
+	
+		self.anti_turret = menu:add_subcategory("Auto Dance (auto spacing)", self.nav)
+
+		self.checkboxAutoSpace = menu:add_checkbox("try auto dance(spacing beta)", self.anti_turret, 1)
+	end,
+	deny_turret_harass= function(self, pos)
+		Prints("DennyTurretInHarass", 4)
+		if not get_menu_val(self.checkboxAntiTurretTechGlobal) then return false end
+	  
+		local should_deny_turret =
+		  (get_menu_val(self.checkboxAntiTurretTechGlobal) and not get_menu_val(self.checkboxAntiTurretTechHarass) and not get_menu_val(self.checkboxAntiTurretTechCombo)) or
+		  (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == mode.Harass_key) or
+		  (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == mode.Combo_key)
+	  
+	  
+	  -- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
+		if pos and should_deny_turret then
+		  local isunder, turret = self.helper:is_under_turret(pos)
+		  if isunder then
+			Prints("is under turret yeah " .. type(pos),4)
+			local new_click = self.vec3_util:extend(turret.origin, pos, 950)
+			_G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
+			_G.DynastyOrb:BlockMovement()
+			Prints("attmept to force move",3)
+			issueorder:move(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
+			Prints("attmepted to force move off turret", 3)
+	  
+	  
+			-- dancing = true
+			-- top = new_click
+			-- mid = new_click
+			-- bot = new_click
+			return true
+		  end
+		return false
+		end
+	  
+	end
+
+})
+
 
 --------------------------------------------------------------------------------
 
@@ -2834,10 +2979,14 @@ local x = class({
 	vec3_util = vec3Util,
 	color = color,
 	e_key = e_key,
+	e_spell_slot = e_spell_slot,
+	mode = mode,
+	chance_strings = chance_strings,
+	rates = rates,
 
 
 	init = function(self)
-		local LuaVersion = 0.8
+		local LuaVersion = 0.9
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
@@ -2875,13 +3024,15 @@ local x = class({
 		self.visualizer = visualizer:new(self.util, self.helper, self.math, self.objects, self.damagelib)
 		self.debug = debug:new(self.util)
 		self.target_selector = target_selector:new(self.helper, self.math, self.objects, self.damagelib)
+		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.math, self.objects, self.damagelib,self.debug, self.permashow)
 
 
 		client:set_event_callback("on_tick_always",function() self.target_selector:tick() end)
-
 		client:set_event_callback("on_draw", function() self.permashow:draw() self.debug:draw() self.target_selector:draw() self.visualizer:draw() end)
 		client:set_event_callback("on_tick_always",function() self.permashow:tick() end)
+	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
 
+		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
 	end,
 
 })

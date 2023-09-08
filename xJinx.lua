@@ -1,3 +1,4 @@
+
 if not _G.DreamPred then
   require("DreamPred")
 end
@@ -9,40 +10,21 @@ if not _G.DynastyOrb then
 end
 
 require("PKDamageLib")
-
-g_local = game.local_player
-REQUIRE_SLOTTED_RESTART = false
+core = require("xCore")
 
 if game.local_player.champ_name ~= "Jinx" then return end
-
-local ml = require "VectorMath"
+g_local = game.local_player
 
 local Jinx = {}
 Jinx.__index = Jinx
 
-e_spell_slot = {
-	q = SLOT_Q,
-	w = SLOT_W,
-	e = SLOT_E,
-	r = SLOT_R
-	}
-
-
+e_spell_slot = core.e_spell_slot
+Modes = core.mode
+chance_strings = core.chance_strings
+Rates = core.rates
 
 local name = "xAIO - Jinx"
-
 local std_math = math
-
-local Combo_key = 1
-local Harass_key = 2
-local Clear_key = 3
-local Lasthit = 4
-local Freeze = 5
-local Flee = 6
-local Idle_key = 0
-local Recalling = 0
-
-LAST_AA_TARGET = nil
 
 -- MinionsUnkillable = {}
 MinionInrange = {}
@@ -52,8 +34,6 @@ SplashableMinionIndex = nil
 MinionTable = {}
 Last_Q_swap_time = game.game_time
 Last_cast_time = game.game_time
-
-
 
 function Prints(str, level)
     core.debug:Print(str, level)
@@ -68,185 +48,87 @@ function get_menu_val(cfg)
 end
 
 
-
-local chanceStrings = {
-  [0] = "low",
-  [1] = "medium",
-  [2] = "high",
-  [3] = "very_high",
-  [4] = "immobile"
-}
-
-
  -- fix data
-local Data = {
-    Q = {
-      manaCost = { 20, 20, 20, 20, 20 },
-      source = myHero,
-      spell = spellbook:get_spell_slot(e_spell_slot.q),
-      spellSlot = e_spell_slot.q,
-      range = { 80, 110, 140, 170, 200 },
-      Level = 0,
-    },
-    W = {
-      manaCost = { 40, 45, 50, 55, 60 },
-      spell = spellbook:get_spell_slot(e_spell_slot.w),
-      spellSlot = e_spell_slot.w,
-      source = myHero,
-      type = "linear",
-      delay = 0.4,
-      speed = 3300,
-      range = 1450,
-      width = 120,
-      collision = {
-        ["Wall"] = false,
-        ["Hero"] = true,
-        ["Minion"] = true
+  local Data = {
+      Q = {
+        manaCost = { 20, 20, 20, 20, 20 },
+        source = myHero,
+        spell = spellbook:get_spell_slot(e_spell_slot.q),
+        spellSlot = e_spell_slot.q,
+        range = { 80, 110, 140, 170, 200 },
+        Level = 0,
       },
-      Damage = 0,
-      Level = 0,
-    },
-    E = {
-      source = myHero,
-      manaCost = { 90, 90, 90, 90, 90 },
-      spell = spellbook:get_spell_slot(e_spell_slot.e),
-      spellSlot = e_spell_slot.e,
-      range = 925,
-      Damage = g_local.total_attack_damage,
-      delay = 0.9,
-      type = "circular",
-      collision = { ["Wall"] = false, ["Hero"] = true, ["Minion"] = false},
-      radius = 50,
-      width = 100,
-      speed = 1700,
-      Level = 0,
-    },
-    R = {
-      source = myHero,
-      manaCost = { 100, 100, 100, 100, 100 },
-      spell = spellbook:get_spell_slot(e_spell_slot.r),
-      spellSlot = e_spell_slot.r,
-      range = 3000,
-      width = 280,
-      type = "linear",
-      collision = {
-        ["Wall"] = false,
-        ["Hero"] = true,
-        ["Minion"] = false
-      },
-      delay = 0.6,
-      Damage = 0,
-      speed = 1700,
-      Level = 0,
-    },
-    AA = {
-      Damage = g_local.total_attack_damage,
-      short_range = 0,
-      long_range = 0,
-      rocket_launcher = false,
-      enemy_close = false,
-      enemy_far = false,
-      -- ignore below here its for prediction
-      type = "linear",
-      range = 99999,
-      delay = 0.15,
-      width = 1000,
-      speed = 1700,
-      collision = {
+      W = {
+        manaCost = { 40, 45, 50, 55, 60 },
+        spell = spellbook:get_spell_slot(e_spell_slot.w),
+        spellSlot = e_spell_slot.w,
+        source = myHero,
+        type = "linear",
+        delay = 0.4,
+        speed = 3300,
+        range = 1450,
+        width = 120,
+        collision = {
           ["Wall"] = false,
-          ["Hero"] = false,
+          ["Hero"] = true,
+          ["Minion"] = true
+        },
+        Damage = 0,
+        Level = 0,
+      },
+      E = {
+        source = myHero,
+        manaCost = { 90, 90, 90, 90, 90 },
+        spell = spellbook:get_spell_slot(e_spell_slot.e),
+        spellSlot = e_spell_slot.e,
+        range = 925,
+        Damage = g_local.total_attack_damage,
+        delay = 0.9,
+        type = "circular",
+        collision = { ["Wall"] = false, ["Hero"] = true, ["Minion"] = false},
+        radius = 50,
+        width = 100,
+        speed = 1700,
+        Level = 0,
+      },
+      R = {
+        source = myHero,
+        manaCost = { 100, 100, 100, 100, 100 },
+        spell = spellbook:get_spell_slot(e_spell_slot.r),
+        spellSlot = e_spell_slot.r,
+        range = 3000,
+        width = 280,
+        type = "linear",
+        collision = {
+          ["Wall"] = false,
+          ["Hero"] = true,
           ["Minion"] = false
-      }
-    },
-  }
-
-  Rates = { "slow", "instant", "very slow" }
-
-  function Get_distance(start_point, end_point)
-    local dx = start_point.x - end_point.x
-    local dy = start_point.y - end_point.y
-    local dz = start_point.z - end_point.z
-    
-    local distance_squared = dx*dx + dy*dy + dz*dz
-    return math.sqrt(distance_squared)
-  end
-
-  -- <3 nenny
-  
-  function Vec3_Rotate(c, p, angle)  -- Center, Point, Angle
-    Prints("Vec3_Rotate", 4)
-
-    angle = angle * (math.pi / 180) -- Convert the angle to radians
-
-    local rotatedX = math.cos(angle) * (p.x - c.x) - math.sin(angle) * (p.z - c.z) + c.x
-    local rotatedZ = math.sin(angle) * (p.x - c.x) + math.cos(angle) * (p.z - c.z) + c.z
-
-    return {
-        x = rotatedX,
-        y = p.y,
-        z = rotatedZ
-    }
-end
-
-
-function Vec3_Normalize(v)
-  local dx = v.x
-  local dy = v.y
-  local dz = v.z
-  local length = math.sqrt(dx * dx + dy * dy + dz * dz)
-  
-  -- Check if length is zero to avoid division by zero
-  if length == 0 then
-      return {
-          x = 0,
-          y = 0,
-          z = 0
-      }
-  end
-  
-  return {
-      x = dx / length,
-      y = dy / length,
-      z = dz / length
-  }
-end
-
-function Vec3_Subtract(v1, v2)
-  return {
-      x = v1.x - v2.x,
-      y = v1.y - v2.y,
-      z = v1.z - v2.z
-  }
-end
-
-  function Vec3_Extend(v1, v2, dist)
-    Prints("v1.x " .. tostring(v1.x) .. " v1.y " .. tostring(v1.y) .. " v1.z " .. tostring(v1.z), 4)
-    Prints("v2.x " .. tostring(v2.x) .. " v2.y " .. tostring(v2.y) .. " v2.z " .. tostring(v2.z), 4)
-
-    local dx = v2.x - v1.x
-    local dy = v2.y - v1.y
-    local dz = v2.z - v1.z
-    local length = math.sqrt(dx * dx + dy * dy + dz * dz)
-
-    -- Check if length is zero to avoid division by zero
-    if length == 0 then
-        return {
-            x = v1.x,
-            y = v1.y,
-            z = v1.z
+        },
+        delay = 0.6,
+        Damage = 0,
+        speed = 1700,
+        Level = 0,
+      },
+      AA = {
+        Damage = g_local.total_attack_damage,
+        short_range = 0,
+        long_range = 0,
+        rocket_launcher = false,
+        enemy_close = false,
+        enemy_far = false,
+        -- ignore below here its for prediction
+        type = "linear",
+        range = 99999,
+        delay = 0.15,
+        width = 1000,
+        speed = 1700,
+        collision = {
+            ["Wall"] = false,
+            ["Hero"] = false,
+            ["Minion"] = false
         }
-    end
-
-    local scale = dist / length
-    local _x = v1.x + dx * scale
-    local _y = v1.y + dy * scale
-    local _z = v1.z + dz * scale
-
-    Prints("ret from extend",4)
-    return vec3.new(_x, _y,_z)
-end
-
-
+      },
+  }
 
   function Data:refresh_data()
     -- Prints("refreshing", 3)
@@ -295,7 +177,7 @@ end
   end
   
   function Data:in_range(spell, target)
-    if target ~= nil and target:distance_to(g_local.origin) <= self[spell].range then
+    if target ~= nil and core.vec3_util:distance(g_local.origin, target.origin) <= self[spell].range then
       return true
     else
       return false
@@ -310,17 +192,11 @@ function Jinx:new()
 end
 
 function Jinx:ToggleTS()
-  -- Prints("toggle ts in...")
-  -- Prints("type control: " .. type(self.TS_to_use), 1)
   local currVal = core.target_selector:TOGGLE_STATUS()
--- menu:set_value(id, value)
-
-  -- Prints("currValpretoggle: " .. tostring(currVal), 1)
   if currVal == 0 then
     Prints("swapping to xTS",1)
     core.target_selector:TOGGLE_STATUS(1)
     menu:hide_sub_category(self.sections.Taget_Selector)
-
   else
     Prints("swapping to dreamPred",1)
     core.target_selector:TOGGLE_STATUS(0)
@@ -329,7 +205,6 @@ function Jinx:ToggleTS()
     end
 
   end
-  -- Prints("currValposttoggle: " .. tostring(currVal), 1)
 end
 
 function Jinx:add_jmenus()
@@ -456,7 +331,7 @@ function farm()
   -- Prints("farm in")
   for _, v in ipairs(game.turrets) do
     local turret = v
-    if turret and not turret.is_enemy and Get_distance(turret.origin, g_local.origin) < Data['AA'].long_range then
+    if turret and not turret.is_enemy and core.vec3_util:distance(turret.origin, g_local.origin) < Data['AA'].long_range then
       local minions = core.objects:get_enemy_minions(860, turret.origin)
       if #minions > 0 then 
         local sorted = core.objects:get_ordered_turret_targets(turret, minions)
@@ -476,11 +351,8 @@ function Jinx:registerPS()
   core.permashow:register("Fast W", "Fast W", "shift")
   
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
-  core.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.checkboxAntiTurretTechGlobal)
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
   core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
-
-
 end
 
 dancing = false
@@ -495,23 +367,23 @@ function dance()
         -- Initialize positions if they haven't been set
         mid = g_local.origin
         top = Vec3_Rotate(mid, {x = mid.x, y = mid.y, z = mid.z + 100}, 90)
-        bot = Vec3_Extend(mid, top, -100)
+        bot = core.vec3_util:extend(mid, top, -100)
         dancing = true
     end
 
     local currentPos = g_local.origin
 
-    if state == "atMiddle" and Get_distance(currentPos, mid) < 5 then
+    if state == "atMiddle" and core.vec3_util:distance(currentPos, mid) < 5 then
         Prints("move to top from middle", 2)
         -- move to top from middle
         orbwalker:move_to(top.x, top.y, top.z)
         state = "atTop"
-    elseif state == "atTop" and Get_distance(currentPos, top) < 5 then
+    elseif state == "atTop" and core.vec3_util:distance(currentPos, top) < 5 then
         Prints("move to bottom from top", 2)
         -- move to bottom from top
         orbwalker:move_to(bot.x, bot.y, bot.z)
         state = "atBottom"
-    elseif state == "atBottom" and Get_distance(currentPos, bot) < 5 then
+    elseif state == "atBottom" and core.vec3_util:distance(currentPos, bot) < 5 then
         Prints("move to middle from bottom", 2)
         -- move to middle from bottom
         orbwalker:move_to(top.x, top.y, top.z)
@@ -527,11 +399,11 @@ function Jinx:should_stop_dancing()
   local should_dance = false
 
   -- we only dance in combo mode
-  if g_local.is_auto_attacking or (combo:get_mode() ~= Combo_key) then dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
+  if g_local.is_auto_attacking or (combo:get_mode() ~= Modes.Combo_key) then dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
 
   -- and obv only if we have a target who we out speed and outrange
   local enemy = self:Get_target(Data['AA'])
-  if enemy == nil or (enemy.attack_range >= Data['AA'].long_range) or (enemy.move_speed > g_local.move_speed * 1.15 ) or (Get_distance(g_local.origin, enemy.origin) > Data['AA'].long_range + 350) then 
+  if enemy == nil or (enemy.attack_range >= Data['AA'].long_range) or (enemy.move_speed > g_local.move_speed * 1.15 ) or (core.vec3_util:distance(g_local.origin, enemy.origin) > Data['AA'].long_range + 350) then 
     dancing = false 
     orbwalker:enable_move()
     orbwalker:enable_auto_attacks()
@@ -548,7 +420,7 @@ function Jinx:should_stop_dancing()
         nme_pos = nme_pred.castPosition
       end
       -- get distnace
-      if Get_distance(nme_pos, g_local.origin) < enemy.attack_range + 120 then
+      if core.vec3_util:distance(nme_pos, g_local.origin) < enemy.attack_range + 120 then
         aa_threat_count = aa_threat_count + 1
       end
     end
@@ -591,16 +463,14 @@ function Jinx:position_optimally()
   local enemy_theat_range = enemy.attack_range + enemy.bounding_radius + g_local.bounding_radius
   local my_theat_range = g_local.attack_range + enemy.bounding_radius + g_local.bounding_radius - 30
 
-
   -- Calculate the point where the enemy is exactly at the edge of Jinx's attack range
-  local move_to_point = Vec3_Extend(nme_pos, game.mouse_pos, my_theat_range)
-
+  local move_to_point = core.vec3_util:extend(nme_pos, game.mouse_pos, my_theat_range)
 
   -- Adjust the position to be outside of the threat range
-  local distance_from_enemy_to_point = Get_distance(enemy.origin, move_to_point)
+  local distance_from_enemy_to_point = core.vec3_util:distance(enemy.origin, move_to_point)
 
   if distance_from_enemy_to_point < enemy_theat_range then
-      move_to_point = Vec3_Extend(enemy.origin, g_local.origin, enemy_theat_range +55)
+      move_to_point = core.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range +55)
       --Prints("shoved")
   else
     --Prints("not shoved")
@@ -609,14 +479,14 @@ function Jinx:position_optimally()
   local gets_to_close = false
   -- lets loop these then decide if these are too close to the enemy
   for i, point in ipairs(war_path) do
-    if Get_distance(point, enemy.origin) < enemy_theat_range then
+    if core.vec3_util:distance(point, enemy.origin) < enemy_theat_range then
       gets_to_close = true
     else
     end
   end
 
   if gets_to_close then
-    move_to_point = Vec3_Extend(enemy.origin, g_local.origin, enemy_theat_range +100)
+    move_to_point = core.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range +100)
     -- Prints("bad path shove")
   else
     --Prints("no  path shove")
@@ -624,9 +494,9 @@ function Jinx:position_optimally()
 
 
 
-  top = Vec3_Extend(enemy.origin, g_local.origin, my_theat_range)
+  top = core.vec3_util:extend(enemy.origin, g_local.origin, my_theat_range)
   mid = move_to_point
-  bot = Vec3_Extend(enemy.origin, g_local.origin, enemy_theat_range)
+  bot = core.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range)
   dancing = true
 
 
@@ -639,7 +509,7 @@ function Jinx:position_optimally()
   -- console:log("move attempted")
 
   -- enable auto attacks if we're far enough away now
-  if Get_distance(g_local.origin, enemy.origin) > enemy_theat_range then
+  if core.vec3_util:distance(g_local.origin, enemy.origin) > enemy_theat_range then
     orbwalker:enable_auto_attacks()
   end
 
@@ -649,7 +519,7 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 0.8
+  local LuaVersion = 0.9
   self.luaversion = LuaVersion
 
 	local LuaName = "xJinx"
@@ -678,33 +548,6 @@ function Jinx:init()
 		AutoUpdate()
 	end
 
-    self.Q = { range = 800 }
-    self.W = { range = 925 }
-    self.E = { range = 1100 }
-    self.R = { range = 675 }
-
-    self.Q_input = {
-        source = myHero,
-        speed = math.huge, range = 1100,
-        delay = 0.70, radius = 160,
-        collision = {},
-        type = "circular", hitbox = false
-    }
-
-    self.myHero = game.local_player
-    self.bounding_radiuses = {}
-    self.version = 99
-
-    local file_name = "VectorMath.lua"
-	if not file_manager:file_exists(file_name) then
-	    local url = "https://raw.githubusercontent.com/stoneb2/Bruhwalker/main/VectorMath/VectorMath.lua"
-	    http:download_file_async(url, file_name,function()
-		    console:log("VectorMath Library Downloaded")
-		    console:log("Please Reload with F5")
-	   end)
-	end
-
-
     
     self:add_jmenus()
     self:registerPS()
@@ -716,15 +559,11 @@ function Jinx:init()
 
     client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
-    client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
+    -- client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
 
-    _G.DynastyOrb:AddCallback("OnMovement", function(...) self:deny_turret_harass(...) end)
+    
     -- _G.DynastyOrb:AddCallback("OnUnKillable", function(...) self:turret_spell_farm(...) end)
-
-
-
 end
-
 
 function Jinx:ready(spell)
   if 1==1 then return spellbook:can_cast(spell) end
@@ -768,9 +607,9 @@ function Jinx:GetLineTargetCount(source, pos, radius)
     local count = 0
     for _, target in ipairs(self:enemyHeroes()) do
         local range = 1000 * 1000
-        if target:distance_to(self.myHero.origin) <= range then
+        if core.vec3_util:distance(target.origin, self.myHero.origin) <= range then
             local pointSegment, pointLine, isOnSegment = self:VectorPointProjectionOnLineSegment(source.origin, pos.origin, target.origin)
-            if pointSegment and isOnSegment and (Get_distance(target.origin, pointSegment) <= (target.bounding_radius + radius) * (target.bounding_radius + radius)) then
+            if pointSegment and isOnSegment and (core.vec3_util:distance(target.origin, pointSegment) <= (target.bounding_radius + radius) * (target.bounding_radius + radius)) then
                 count = count + 1
             end
         end
@@ -778,16 +617,15 @@ function Jinx:GetLineTargetCount(source, pos, radius)
     return count
 end
 
-
-function Jinx:validTarget(object, distance)
-    return object and object.is_valid and object.is_enemy and
-    not object:has_buff("SionPassiveZombie") and
-    not object:has_buff("FioraW") and
-    not object:has_buff("sivire") and
-    not object:has_buff("MorganaE") and
-    not object:has_buff("nocturneshroudofdarkness") and
-    object.is_alive and not object:has_buff_type(18) and
-    (not distance or object:distance_to(self.myHero.origin) <= distance)
+function Jinx:validTarget(unit, distance)
+    return unit and unit.is_valid and unit.is_enemy and
+    not unit:has_buff("SionPassiveZombie") and
+    not unit:has_buff("FioraW") and
+    not unit:has_buff("sivire") and
+    not unit:has_buff("MorganaE") and
+    not unit:has_buff("nocturneshroudofdarkness") and
+    unit.is_alive and not unit:has_buff_type(18) and
+    (not distance or core.vec3_util:distance(unit.origin,  self.myHero.origin) <= distance)
 end
 
 function Jinx:inList(tab, val)
@@ -805,7 +643,7 @@ function Jinx:mergeAllTables(minions, jungle_minions)
     for _, minion in ipairs(minions) do
         if minion.is_valid and minion.is_enemy and minion.is_alive then
             local grabrange = self.W.range + minion.bounding_radius
-            if minion:distance_to(self.myHero.origin) <= grabrange then
+            if core.vec3_util:distance(minion.origin,  self.myHero.origin) <= grabrange then
                 table.insert(mergedTable, minion)
             end
         end
@@ -814,7 +652,7 @@ function Jinx:mergeAllTables(minions, jungle_minions)
     for _, jungle in ipairs(jungle_minions) do
         if jungle.is_valid and jungle.is_alive then
             local grabrange = self.W.range + jungle.bounding_radius
-            if jungle:distance_to(self.myHero.origin) <= grabrange then
+            if core.vec3_util:distance(jungle.origin,  self.myHero.origin) <= grabrange then
                 table.insert(mergedTable, jungle)
             end
         end
@@ -822,7 +660,6 @@ function Jinx:mergeAllTables(minions, jungle_minions)
 
     return mergedTable
 end
-
 
 function Jinx:get_sorted_targets(enemies, damage_function, spell_data, delay)
 
@@ -890,13 +727,14 @@ function Jinx:Get_target(spell_data)
     if core.target_selector:GET_STATUS() then
       target = core.target_selector:get_main_target()
       -- try even harder to find a target
-      if target == nil or (target and g_local:distance_to(target.origin) > 2000) then
+
+      if target == nil or (target and core.vec3_util:distance(g_local.origin, target.origin) > 2000) then
         if core.objects:count_enemy_champs(2000) > 0 then
           -- print("get second try")
           target = core.target_selector:get_second_target(2000)
           -- print("get thirds try")
           
-          if target == nil or (target and g_local:distance_to(target.origin) > 2000) then
+          if target == nil or (target and core.vec3_util:distance(g_local.origin, target.origin) > 2000) then
             local enemies = core.objects:get_enemy_champs(2000)
             local sorted = self:get_sorted_w_targets(enemies)
             if sorted and #sorted > 0 then
@@ -937,9 +775,7 @@ function Jinx:Get_target(spell_data)
   end
 
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
-
 --   LOGIC
-
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
 
 local function Get_minions(range)
@@ -947,7 +783,8 @@ local function Get_minions(range)
 
   for _, minion in ipairs(game.minions) do
     if minion ~= nil and minion.is_enemy and core.helper:is_alive(minion) and minion.is_visible and minion.is_minion and minion.is_targetable then
-      if g_local:distance_to(minion.origin) <= range then
+      
+      if core.vec3_util:distance(g_local.origin, minion.origin) <= range then
         table.insert(minions_in_range, minion)
       end
     end
@@ -962,8 +799,8 @@ function Jinx:deny_turret_harass(pos)
 
   local should_deny_turret =
     (get_menu_val(self.checkboxAntiTurretTechGlobal) and not get_menu_val(self.checkboxAntiTurretTechHarass) and not get_menu_val(self.checkboxAntiTurretTechCombo)) or
-    (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == Harass_key) or
-    (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == Combo_key)
+    (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == Modes.Harass_key) or
+    (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == Modes.Combo_key)
 
 
 -- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
@@ -971,7 +808,7 @@ function Jinx:deny_turret_harass(pos)
     local isunder, turret = core.helper:is_under_turret(pos)
     if isunder then
       Prints("is under turret yeah " .. type(pos),4)
-      local new_click = Vec3_Extend(turret.origin, pos, 950)
+      local new_click = core.vec3_util:extend(turret.origin, pos, 950)
       _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
       _G.DynastyOrb:BlockMovement()
       Prints("attmept to force move",3)
@@ -994,8 +831,8 @@ function Jinx:exit_rocket_logic()
     Prints("exit rocket logic", 4)
     local mode = combo:get_mode()
 
-    if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Combo_key and mode ~= Idle_key and get_menu_val(self.q_clear) then
-      if mode == Harass_key and Data['AA'].enemy_far then
+    if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Modes.Combo_key and mode ~= Modes.Idle_key and get_menu_val(self.q_clear) then
+      if mode == Modes.Harass_key and Data['AA'].enemy_far then
         return false
       end
       if game.game_time - Last_Q_swap_time > 3.5 then
@@ -1008,7 +845,7 @@ function Jinx:exit_rocket_logic()
 
     --if orbawalker target is minion and mode is clear or harass and target is in range of aa and we are in rocket mode then swap q to minigun
     local target = orbwalker:get_orbwalker_target()
-    if target and target.is_minion and core.helper:is_alive(target) and (mode == Clear_key or mode == Harass_key) and g_local:distance_to(target.origin) < Data['AA'].long_range and Data['AA'].rocket_launcher then
+    if target and target.is_minion and core.helper:is_alive(target) and (mode == Modes.Clear_key or mode == Modes.Harass_key) and core.vec3_util:distance(g_local.origin, target.origin) < Data['AA'].long_range and Data['AA'].rocket_launcher then
       Prints("exit rocket mode, bcuz minion in aa range", 2)
       spellbook:cast_spell(e_spell_slot.q)
       Last_Q_swap_time = game.game_time
@@ -1054,7 +891,7 @@ local function save_minion_with_q()
       Prints("got mins in long range: " .. tostring(#minions_in_range), 4)
       
       for _, minion in ipairs(minions_in_range) do
-        if Get_distance(g_local.origin, minion.origin) > Data['AA'].short_range + 35 then
+        if core.vec3_util:distance(g_local.origin, minion.origin) > Data['AA'].short_range + 35 then
 
           local delay = core.objects:get_aa_travel_time(minion, g_local, 1700) + 0.35       
           local hpPred = DynastyOrb:GetPredictedHealth(minion, delay)
@@ -1118,19 +955,19 @@ function Jinx:spell_q()
     
     -- Prints("mode: " .. tostring(mode), 3)
     -- Combo logic
-    if mode == Combo_key and get_menu_val(self.q_combo) and self:combo_harass_q() then return true end
+    if mode == Modes.Combo_key and get_menu_val(self.q_combo) and self:combo_harass_q() then return true end
 
     -- Harass logic
-    if mode == Harass_key and get_menu_val(self.q_harass) and mana_req <= mana_perc  and self:combo_harass_q() then return true end
+    if mode == Modes.Harass_key and get_menu_val(self.q_harass) and mana_req <= mana_perc  and self:combo_harass_q() then return true end
 
     -- Farm logic -- extends auto range to hit dying minions if in minigun form
-    if (mode == Clear_key or mode == Harass_key or mode == Lasthit) and get_menu_val(self.q_clear) and save_minion_with_q() then return true end
+    if (mode == Modes.Clear_key or mode == Modes.Harass_key or mode == Modes.Lasthit) and get_menu_val(self.q_clear) and save_minion_with_q() then return true end
 
     -- Clear logic -- AoE minions
-    if (mode == Clear_key or mode == Harass_key) and  get_menu_val(self.q_clear_aoe) and g_local.is_auto_attacking and self:fast_clear_aoe_Logic() then return true end
+    if (mode == Modes.Clear_key or mode == Modes.Harass_key) and  get_menu_val(self.q_clear_aoe) and g_local.is_auto_attacking and self:fast_clear_aoe_Logic() then return true end
 
     -- Exit rocket logic
-     if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Combo_key and mode ~= Idle_key and get_menu_val(self.q_clear) and game.game_time - Last_Q_swap_time > 0.5 and self:exit_rocket_logic() then return true end
+     if Data['AA'].rocket_launcher and not g_local.is_auto_attacking and mode ~= Modes.Combo_key and mode ~= Modes.Idle_key and get_menu_val(self.q_clear) and game.game_time - Last_Q_swap_time > 0.5 and self:exit_rocket_logic() then return true end
 
     return false
 end
@@ -1138,18 +975,18 @@ end
 
  function Jinx:should_skip_w_cast()
   local target = self:Get_target(Data['W'])
-  local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
+  local in_Q_range = core.vec3_util:distance(g_local.origin, target.origin) <= Data['AA'].long_range + 15
   if not in_Q_range then return false end
 
   local mode = combo:get_mode()
   local full_combo = game:is_key_down(core.e_key.shift)
   local should_w_in_aa_range = get_menu_val(self.w_combo_not_in_range)
-  if mode == Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
+  if mode == Modes.Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
 
   local aadmg = core.damagelib:calc_aa_dmg(g_local, target)
   local aa_to_kill = std_math.ceil(target.health / aadmg)
   local near_death = aa_to_kill <= 2
-  if full_combo and mode == Combo_key then should_w_in_aa_range = true end
+  if full_combo and mode == Modes.Combo_key then should_w_in_aa_range = true end
 
 
   if in_Q_range then
@@ -1168,7 +1005,7 @@ function Jinx:should_try_w_hit_pred(w_hit)
   local w_rate = menu:get_value(self.w_combo_rate) + 1
 
   -- if we're in harass mode, use the harass hitChance setting
-  if mode == Harass_key then
+  if mode == Modes.Harass_key then
     w_rate = menu:get_value(self.w_harass_rate) + 1
   end
 
@@ -1188,26 +1025,26 @@ end
   --if ready w
   if not self:ready(e_spell_slot.w) then return false end
   local mode = combo:get_mode()
-  local should_w_combo = (mode == Combo_key and get_menu_val(self.w_combo))
+  local should_w_combo = (mode == Modes.Combo_key and get_menu_val(self.w_combo))
   local prev_target = orbwalker:get_orbwalker_target()
-  local should_w_Jungle_clear = (mode == Clear_key and get_menu_val(self.q_clear_aoe) and prev_target.is_jungle_minion)
+  local should_w_Jungle_clear = (mode == Modes.Clear_key and get_menu_val(self.q_clear_aoe) and prev_target.is_jungle_minion)
 
   --if not should then false
   if not should_w_combo and not should_w_Jungle_clear  then return false end
 
   local target = self:Get_target(Data['W'])
   if should_w_combo and target then
-    local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
+    local in_Q_range = core.vec3_util:distance(g_local.origin, target.origin) <= Data['AA'].long_range + 15
     if not in_Q_range then return false end
 
     local full_combo = game:is_key_down(17)
     local should_w_in_aa_range = get_menu_val(self.w_combo_not_in_range)
-    if mode == Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
+    if mode == Modes.Harass_key then should_w_in_aa_range = get_menu_val(self.w_harass_not_in_range) end
 
     local aadmg = core.damagelib:calc_aa_dmg(g_local, target)
     local aa_to_kill = std_math.ceil(target.health / aadmg)
     local near_death = aa_to_kill <= 2
-    if full_combo and mode == Combo_key then should_w_in_aa_range = true end
+    if full_combo and mode == Modes.Combo_key then should_w_in_aa_range = true end
 
     if in_Q_range then
       if should_w_in_aa_range and not near_death then
@@ -1215,7 +1052,7 @@ end
         local w_hit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
 
         if w_hit and self:should_try_w_hit_pred(w_hit) then
-          Prints("combo: casting w hitChance is " .. chanceStrings[w_hit.hitChance], 2)
+          Prints("combo: casting w hitChance is " .. chance_strings[w_hit.hitChance], 2)
           local castPos = w_hit.castPosition
           spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
     
@@ -1227,7 +1064,7 @@ end
   end
 
   if should_w_Jungle_clear then
-    local in_Q_range = prev_target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
+    local in_Q_range = prev_core.vec3_util:distance(g_local.origin, target.origin) <= Data['AA'].long_range + 15
     if not in_Q_range then return false end
 
     local aadmg = core.damagelib:calc_aa_dmg(g_local, prev_target)
@@ -1300,15 +1137,15 @@ function Jinx:spell_w()
   local target = self:Get_target(Data['W'])
   local mode = combo:get_mode()
 
-  local should_w_combo = (mode == Combo_key and get_menu_val(self.w_combo))
+  local should_w_combo = (mode == Modes.Combo_key and get_menu_val(self.w_combo))
   local curr_mana_perc =  g_local.mana / g_local.max_mana * 100 
-  local should_w_harass = (mode == Harass_key and get_menu_val(self.w_harass) and menu:get_value(self.w_harass_mana) <= curr_mana_perc)
+  local should_w_harass = (mode == Modes.Harass_key and get_menu_val(self.w_harass) and menu:get_value(self.w_harass_mana) <= curr_mana_perc)
   local should_w_ks = (get_menu_val(self.w_KS))
-  local should_w_Jungle_clear = (mode == Clear_key and get_menu_val(self.q_clear_aoe))
+  local should_w_Jungle_clear = (mode == Modes.Clear_key and get_menu_val(self.q_clear_aoe))
   -- no w in evade or no target or out of range
 
   -- not evade:is_evading() and
-  if  target and g_local:distance_to(target.origin) <= Data['W'].range then
+  if  target and core.vec3_util:distance(g_local.origin, target.origin) <= Data['W'].range then
     -- w Combo / harss logic
   if (should_w_combo or should_w_harass) and self:w_combo_harass_logic() then return true end
     --W KS logic
@@ -1330,17 +1167,17 @@ local function get_e_vecs(start)
     -- Prints("start: " .. tostring(start.x) .. " " .. tostring(start.y) .. " " .. tostring(start.z), 4)
     local offset = 180
 
-    local dist = Get_distance(start, g_local.origin) + offset
+    local dist = core.vec3_util:distance(start, g_local.origin) + offset
     Prints("dist: " .. tostring(dist), 4)
     
-    local rotater = Vec3_Extend(g_local.origin, start, dist)
+    local rotater = core.vec3_util:extend(g_local.origin, start, dist)
     Prints("rotater: " .. tostring(rotater.x) .. " " .. tostring(rotater.y) .. " " .. tostring(rotater.z), 4)
 
 
     --then we can rotate around the rotater pos
-    left = Vec3_Rotate(start, rotater, 90)
+    left = core.vec3_util:rotate(start, rotater, 90)
     Prints("left: " .. tostring(left.x) .. " " .. tostring(left.y) .. " " .. tostring(left.z), 4)
-    right = Vec3_Rotate(start, rotater, -90)
+    right = core.vec3_util:rotate(start, rotater, -90)
     Prints("right: " .. tostring(right.x) .. " " .. tostring(right.y) .. " " .. tostring(right.z), 4)
 
   end
@@ -1362,11 +1199,11 @@ function Jinx:count_hit_by_traps(center, enemies)
       local e_hit_chance = menu:get_value(self.e_combo_rate) + 1
 
       if e_hit and e_hit.rates[Rates[e_hit_chance]] then
-        local dist_to_center = Get_distance(e_hit.castPosition, center)
+        local dist_to_center = core.vec3_util:distance(e_hit.castPosition, center)
         Prints("dist_to_center: " .. tostring(dist_to_center), 5)
-        local dist_to_left = Get_distance(e_hit.castPosition, left)
+        local dist_to_left = core.vec3_util:distance(e_hit.castPosition, left)
         Prints("dist_to_left: " .. tostring(dist_to_left), 5)
-        local dist_to_right = Get_distance(e_hit.castPosition, right)
+        local dist_to_right = core.vec3_util:distance(e_hit.castPosition, right)
         Prints("dist_to_right: " .. tostring(dist_to_right), 5)
 
         if dist_to_center < Data['E'].width or dist_to_left < Data['E'].width or dist_to_right < Data['E'].width then
@@ -1430,7 +1267,7 @@ end
 function Jinx:spell_e()
   Prints("e spell in", 4)
   local mode = combo:get_mode()
-  local should_e_combo = (mode == Combo_key and get_menu_val(self.e_combo))
+  local should_e_combo = (mode == Modes.Combo_key and get_menu_val(self.e_combo))
 
   if should_e_combo and self:should_e_multihit() then
     return true     
@@ -1546,7 +1383,7 @@ function Jinx:spell_r()
 
   Prints("back with non 0 r targets",4)
   local should_SemiManualR = get_menu_val(self.checkboxManR)  and game:is_key_down(core.e_key.U)
-  local should_r_multihit = combo:get_mode() == Combo_key and get_menu_val(self.r_combo_multihit)
+  local should_r_multihit = combo:get_mode() == Modes.Combo_key and get_menu_val(self.r_combo_multihit)
   Prints("checking should r ks",4)
 
   -- r ks logic
@@ -1670,7 +1507,7 @@ function Jinx:On_cc_special_channel(index)
         end
         -- please dont laser under enemy tower lol -- if in combo mode and not holding control key
         Prints("is under turret? ", 4)
-        if (core.helper:is_under_turret(g_local.origin) and not combo:get_mode() == Combo_key) then
+        if (core.helper:is_under_turret(g_local.origin) and not combo:get_mode() == Modes.Combo_key) then
           should_cast_w = false
         end
         Prints("should cast w? ", 4)
@@ -1809,13 +1646,13 @@ function Jinx:baseult()
 
     Prints("should ult and they are low", 3)
     local remainingTime = (recall.end_time - game.game_time)
-    local enemy_dist = Get_distance(g_local.origin, recall.origin)
+    local enemy_dist = core.vec3_util:distance(g_local.origin, recall.origin)
     
     Prints("getting enemy base pos", 3)
     local enemy_base_position = core.objects:get_baseult_pos(enemy)
     Prints("getting dist to enemy base pos", 3)
 
-    local base_dist = Get_distance(g_local.origin, enemy_base_position)
+    local base_dist = core.vec3_util:distance(g_local.origin, enemy_base_position)
 
     Prints("calculate_projectile_travel_time", 3)
     local time_To_hit_enemy = 0.692 + self:calculate_projectile_travel_time(enemy_dist) + delay
@@ -1862,7 +1699,7 @@ function Jinx:chainCC()
   if g_local.is_recalling then return false end
   Prints("tick after recall check", 4)
   for i, enemy in pairs(core.objects:get_enemy_champs(2000)) do
-    if core.helper:is_alive(enemy) and enemy.is_visible and g_local:distance_to(enemy.origin) < 3000 then
+    if core.helper:is_alive(enemy) and enemy.is_visible and core.vec3_util:distance(g_local.origin, enemy.origin) < 3000 then
       Prints("tick enemy check is_invincible", 4)
       if not DynastyOrb:IsAttacking() and not core.helper:is_invincible(enemy) then -- and not evade:is_evading() 
         Prints("check chain cc", 4)
@@ -1885,7 +1722,7 @@ function Jinx:time_remaining_for_dash(cai)
 end
 
 function Jinx:on_dash(enemy, dash_info)
-  if enemy.is_enemy and enemy.is_hero and g_local:distance_to(enemy.origin) < 1600 then
+  if enemy.is_enemy and enemy.is_hero and core.vec3_util:distance(g_local.origin, enemy.origin) < 1600 then
     Prints("dash in...", 4)
 
       local cai = {
@@ -1899,7 +1736,7 @@ function Jinx:on_dash(enemy, dash_info)
 
       if (get_menu_val(self.w_agc) or get_menu_val(self.e_agc)) then
         Prints("checking for dashes", 4) 
-        if Get_distance(g_local.origin, cai.path_end) > Data['W'].range then
+        if core.vec3_util:distance(g_local.origin, cai.path_end) > Data['W'].range then
           Prints("is dashing out of range of w :(", 2)
           return false
         end
@@ -1913,7 +1750,7 @@ function Jinx:on_dash(enemy, dash_info)
         Prints("w delay: " .. tostring(Data['W'].delay) .. " w delay: " .. tostring((time_remaining > Data['W'].delay - 0.5)), 4)
 
 
-        if get_menu_val(self.e_agc) and (time_remaining > Data['E'].delay - 0.5) and Get_distance(g_local.origin, cai.path_end) < Data['E'].range and core.objects:can_cast(e_spell_slot.e) then
+        if get_menu_val(self.e_agc) and (time_remaining > Data['E'].delay - 0.5) and core.vec3_util:distance(g_local.origin, cai.path_end) < Data['E'].range and core.objects:can_cast(e_spell_slot.e) then
           local e_hit =  _G.DreamPred.GetPrediction(enemy, Data['E'], g_local)
           if e_hit and e_hit.hitChance*100 >= 65 then
             Prints("e cast on dash ", 2)
@@ -1925,9 +1762,9 @@ function Jinx:on_dash(enemy, dash_info)
         end
     
         -- dont w under tower unless already in combo mode
-        if (core.helper:is_under_turret(g_local.origin) and not combo:get_mode() == Combo_key) then return false end
+        if (core.helper:is_under_turret(g_local.origin) and not combo:get_mode() == Modes.Combo_key) then return false end
           if get_menu_val(self.w_agc) and time_remaining > (Data['W'].delay - 0.5) and core.objects:can_cast(e_spell_slot.w) then
-            if Get_distance(g_local.origin, cai.path_end) > 300 then
+            if core.vec3_util:distance(g_local.origin, cai.path_end) > 300 then
               Prints("attempted to cast W", 4)
               local w_hit =  _G.DreamPred.GetPrediction(enemy, Data['W'], g_local)
               if w_hit and self:should_try_w_hit_pred(w_hit) then
@@ -1958,8 +1795,8 @@ function Jinx:get_harass_minions_near(obj_hero_idx, range)
         if true then -- (obj_minion.object_name == "SRU_ChaosMinionRanged" or obj_minion.object_name == "SRU_ChaosMinionMelee" or obj_minion.object_name == "SRU_ChaosMinionSiege")
           local exists = 0
           -- Prints(" i can see and is alive: " .. tostring(obj_minion.object_name))
-          if obj_hero:distance_to(obj_minion.origin) < range then
-            -- Prints("i see one " .. tostring(obj_hero:distance_to(obj_minion.origin)))
+          if core.vec3_util:distance(obj_hero.origin, obj_minion.origin) < range then
+            -- Prints("i see one " .. tostring(core.vec3_util:distance(obj_hero.origin, obj_minion.origin)))
             if MinionTable and #MinionTable > 0 then
               -- Prints("checking if our list already has " .. obj_minion.object_id)
               for ii, alive in ipairs(MinionTable) do
@@ -1980,7 +1817,7 @@ function Jinx:get_harass_minions_near(obj_hero_idx, range)
             local remove = false
             local alive = game:get_object(alive_idx.idx)
             if alive then
-              if obj_hero:distance_to(alive.origin) > range then remove = true end
+              if core.vec3_util:distance(obj_hero.origin, alive.origin) > range then remove = true end
               if core.helper:is_alive(alive) == false then remove = true end
               if alive.is_visible == false then remove = true end
             else
@@ -2004,9 +1841,9 @@ function Jinx:validateSplashMinionAndtarget()
 
   if SplashabletargetIndex then
     local hero_obj = game:get_object(SplashabletargetIndex)
-    if g_local:distance_to(hero_obj.origin) < Data['AA'].long_range + core.objects:get_bounding_radius(hero_obj) then
+    if core.vec3_util:distance(g_local.origin, hero_obj.origin) < Data['AA'].long_range + core.objects:get_bounding_radius(hero_obj) then
       SplashabletargetIndex = nil
-    elseif hero_obj:distance_to(hero_obj.origin) > Data['AA'].long_range + 260 + core.objects:get_bounding_radius(hero_obj) then
+    elseif core.vec3_util:distance(hero_obj.origin, hero_obj.origin) > Data['AA'].long_range + 260 + core.objects:get_bounding_radius(hero_obj) then
       SplashabletargetIndex = nil
     elseif core.helper:is_alive(hero_obj) == false then
       SplashabletargetIndex = nil
@@ -2016,9 +1853,9 @@ function Jinx:validateSplashMinionAndtarget()
     -- if SplashabletargetIndex then Prints("Splashable target valid", 1) else Prints("Splashable target removed", 1) end
     if SplashableMinionIndex then
       local min_obj = game:get_object(SplashableMinionIndex)
-      if g_local:distance_to(min_obj.origin) > Data['AA'].long_range + core.objects:get_bounding_radius(min_obj) then
+      if core.vec3_util:distance(g_local.origin, min_obj.origin) > Data['AA'].long_range + core.objects:get_bounding_radius(min_obj) then
         SplashableMinionIndex = nil
-      elseif hero_obj:distance_to(min_obj.origin) > 235 then
+      elseif core.vec3_util:distance(hero_obj.origin, min_obj.origin) > 235 then
         SplashableMinionIndex = nil
       elseif core.helper:is_alive(min_obj) == false then
         SplashableMinionIndex = nil
@@ -2048,12 +1885,12 @@ function Jinx:findSplashableMinion()
         
         local minion = game:get_object(minionIdx.idx)
         -- Prints("lf new splashable ... cus we dont got one rn")
-        if target:distance_to(minion.origin) < 236 then 
+        if core.vec3_util:distance(target.origin, minion.origin) < 236 then 
           -- Prints("lf new splashable ... and this looks good")
 
-          if g_local:distance_to(minion.origin) < Data['AA'].long_range + minion.bounding_radius then
+          if core.vec3_util:distance(g_local.origin, minion.origin) < Data['AA'].long_range + minion.bounding_radius then
 
-            Prints("bing! idx is minions is at " .. g_local:distance_to(minion.origin), 4)
+            Prints("bing! idx is minions is at " .. core.vec3_util:distance(g_local.origin, minion.origin), 4)
             SplashableMinionIndex = minion.object_id
           end
         end
@@ -2075,8 +1912,8 @@ function Jinx:Splash_harass()
   self:validateSplashMinionAndtarget()
 
   --is target outside normal Q range?
-  if core.helper:is_alive(target) and target.is_visible and g_local:distance_to(target.origin) > Data['AA'].long_range + core.objects:get_bounding_radius(target) then
-    if g_local:distance_to(target.origin) < Data['AA'].long_range + 260 + core.objects:get_bounding_radius(target) then
+  if core.helper:is_alive(target) and target.is_visible and core.vec3_util:distance(g_local.origin, target.origin) > Data['AA'].long_range + core.objects:get_bounding_radius(target) then
+    if core.vec3_util:distance(g_local.origin, target.origin) < Data['AA'].long_range + 260 + core.objects:get_bounding_radius(target) then
       Prints("target is inside splash range.", 4)
       -- if we already have a splash minion then why are we still searching
       if SplashableMinionIndex == nil then Jinx:findSplashableMinion() end
@@ -2085,7 +1922,7 @@ function Jinx:Splash_harass()
         Prints("splash minion found", 5)
         local min_obj = game:get_object(SplashableMinionIndex)
         if min_obj and min_obj.is_minion then
-          if combo:get_mode() == Harass_key or get_menu_val(self.q_auto) then
+          if combo:get_mode() == Modes.Harass_key or get_menu_val(self.q_auto) then
             Prints("about to predict onto target: " .. target.champ_name, 5)
             local nme_pred =  _G.DreamPred.GetPrediction(target, Data['AA'], g_local)
             Prints("sh back from pred", 5)
@@ -2093,8 +1930,8 @@ function Jinx:Splash_harass()
 
 
             if nme_pred then 
-              if g_local:distance_to(min_obj.origin) < Data['AA'].long_range + core.objects:get_bounding_radius(min_obj) then
-                  if Get_distance(nme_pred.castPosition, min_obj.origin) < 235 then
+              if core.vec3_util:distance(g_local.origin, min_obj.origin) < Data['AA'].long_range + core.objects:get_bounding_radius(min_obj) then
+                  if core.vec3_util:distance(nme_pred.castPosition, min_obj.origin) < 235 then
                     if Data['AA'].rocket_launcher == false then
                       Prints("sending extendo need Q " .. min_obj.object_name, 2)
  
@@ -2136,9 +1973,9 @@ function Jinx:show_splash_harass()
           local min = game:get_object(alive.idx)
           if min then
 
-            local hmm = Vec3_Extend(min.origin, tgt.origin, tgt:distance_to(min.origin))
+            local hmm = core.vec3_util:extend(min.origin, tgt.origin, core.vec3_util:distance(tgt.origin,  min.origin))
             -- print distance from tgt to min
-            if tgt and min and tgt:distance_to(min.origin) < 260 then 
+            if tgt and min and core.vec3_util:distance(tgt.origin,  min.origin) < 260 then 
               -- Prints("drawing line", 2)
               -- renderer:draw_line(min.origin.x, min.origin.y, tgt.origin.x, tgt.origin.y, 15,255, 0, 0, 100)
 
@@ -2195,14 +2032,14 @@ end
 -- drawLine = function(self, origin, destination, color, width)
 function Jinx:on_draw()
   Prints("Draws", 4)
-  if top and mid and bot and dancing then
-    core.vec3_util:drawCircleFull(top, Colors.solid.red, 35)
-    core.vec3_util:drawCircleFull(mid, Colors.solid.green, 35)
-    core.vec3_util:drawCircleFull(bot, Colors.solid.blue, 35)
-      --draw a line from me to mid
-    core.vec3_util:drawLine(g_local.origin, mid, Colors.solid.green, 2)
+  -- if top and mid and bot and dancing then
+  --   core.vec3_util:drawCircleFull(top, Colors.solid.red, 35)
+  --   core.vec3_util:drawCircleFull(mid, Colors.solid.green, 35)
+  --   core.vec3_util:drawCircleFull(bot, Colors.solid.blue, 35)
+  --     --draw a line from me to mid
+  --   core.vec3_util:drawLine(g_local.origin, mid, Colors.solid.green, 2)
 
-  end
+  -- end
 
 -- checkboxJinxSplashHarass
   if get_menu_val(self.checkboxJinxSplashHarass) then
@@ -2273,8 +2110,6 @@ end
 
 
 -- check_for_prereqs()
-if REQUIRE_SLOTTED_RESTART then return end
-core = require("xCore")
 core:init()
 
 local JinxScript = Jinx:new()
