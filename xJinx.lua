@@ -431,8 +431,13 @@ function Jinx:add_jmenus()
 
     -- Misc
     self.checkboxManR = menu:add_checkbox("manual ult", sections.misc, 1)
-    self.checkboxAntiTurretTech = menu:add_checkbox("deny turret aggro in harrass", sections.misc, 1)
-    self.checkboxAutoSpace = menu:add_checkbox("try auto dance", sections.misc, 1)
+
+    self.checkboxAntiTurretTechGlobal = menu:add_checkbox("deny turret walking in turret aggro", sections.misc, 1)
+    self.checkboxAntiTurretTechHarass = menu:add_checkbox("^ in harass", sections.misc, 1)
+    self.checkboxAntiTurretTechCombo = menu:add_checkbox("^ in combo", sections.misc, 0)
+
+
+    self.checkboxAutoSpace = menu:add_checkbox("try auto dance(spacing beta)", sections.misc, 1)
 
     -- Draw
     self.checkboxLanePressure = menu:add_checkbox("draw Lane pressure",  sections.draw, 0)
@@ -952,44 +957,26 @@ local function Get_minions(range)
 end
 
 function Jinx:deny_turret_harass(pos)
+
+  if not get_menu_val(self.checkboxAntiTurretTechGlobal) then end
+
+  local should_deny_turret = 
+  (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == Harass_key) or
+  (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == Combo_key)
+
+
 -- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
-  if pos and (combo:get_mode() == Harass_key ) then
+  if pos and should_deny_turret then
     local isunder, turret = core.helper:is_under_turret(pos)
     if isunder then
       Prints("is under turret yeah " .. type(pos))
       local new_click = Vec3_Extend(turret.origin, pos, 950)
       _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
       _G.DynastyOrb:BlockMovement()
-      Prints("attmept to force move")
+      Prints("attmept to force move",3)
       issueorder:move(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
-      Prints("attmepted to force move")
-      -- orbwalker:move_to(new_click.x, new_click.y, new_click.z)
-      Prints("attmepted to force move agains")
+      Prints("attmepted to force move off turret", 3)
 
-      -- local war_path = g_local.path.current_waypoints -- table of vec3
-      -- for i, point in ipairs(war_path) do
-      --   local isunder, turret = core.helper:is_under_turret(point)
-      --   if isunder then
-      --     gets_to_close = true
-    
-      --     local newer_click = Vec3_Extend(turret.origin, g_local.origin, 900)
-      --     _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
-      --     _G.DynastyOrb:BlockMovement()
-      --     Prints("war force move 1")
-      --     issueorder:move(newer_click)-- Can be used here or other callbacks, will force the next orb movement to that position
-      --     Prints("war force move 2")
-      --     orbwalker:move_to(newer_click.x, newer_click.y, newer_click.z)
-      --     Prints("war force move 3")
-
-    
-    
-      --     dancing = true
-      --     top = newer_click
-      --     mid = newer_click
-      --     bot = newer_click
-      --     return true
-      --   end
-      -- end
 
       dancing = true
       top = new_click
@@ -997,10 +984,6 @@ function Jinx:deny_turret_harass(pos)
       bot = new_click
       return true
     end
-
---     local new_click = Vec3_Extend(pos, g_local.origin, 850+g_local.bounding_radius)
---     orbwalker:move_to(new_click.x, new_click.y, new_click.z)
---   end
   return false
   end
 end
