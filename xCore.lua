@@ -1,7 +1,11 @@
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
-  end
+end
+if not _G.DreamPred then
+	require("DreamPred")
+end
+  
 
 XCORE_VERSION = "9.1.5"
 XCORE_LUA_NAME = "xCore.lua"
@@ -2873,15 +2877,12 @@ local debug = class({
 			return false
 		end                                                -- skip bad time
 
-		
 		if game.game_time - self.Last_dbg_msg_time >= 10 then return end -- fade out
-
 
 		renderer:draw_text_size(pos.x, Res.y - 260, self.LastMsg, 30, 255, 255, 255, 255)
 		renderer:draw_text_size(pos1.x, Res.y - 290, self.LastMsg1, 30, 255, 255, 255, 255)
 		renderer:draw_text_size(pos2.x, Res.y - 320, self.LastMsg2, 30, 255, 255, 255, 255)
 		-- console:log("x: " .. pos2.x .. " y:" .. Res.y)
-
 	end
 
 })
@@ -2894,9 +2895,12 @@ local debug = class({
 local utils = class({
 	nav = nil,
 	XutilMenuCat = nil,
+	dancing = true,
+	top = nil,
+	mid = nil,
+	bot = nil,
 
-	init = function(self,vec3_util, util, xHelper, math, objects, damagelib,debug,permashow)
-		self.Last_cast_time = game.game_time
+	init = function(self,vec3_util, util, xHelper, math, objects, damagelib, debug, permashow, target_selector)
 		self.helper = xHelper
 		self.math = math
 		self.util = util
@@ -2905,6 +2909,7 @@ local utils = class({
 		self.debug = debug
 		self.permashow = permashow
 		self.vec3_util = vec3_util
+		self.target_selector = target_selector
 		-- -- Menus
 		if XutilMenuCat == nil then XutilMenuCat = menu:add_category("xUtils") end
 		self.nav = XutilMenuCat
@@ -2916,12 +2921,14 @@ local utils = class({
 		self.checkboxAntiTurretTechCombo = menu:add_checkbox("^ in combo", self.anti_turret, 0)
 	
 		self.anti_turret = menu:add_subcategory("Auto Dance (auto spacing)", self.nav)
-
 		self.checkboxAutoSpace = menu:add_checkbox("try auto dance(spacing beta)", self.anti_turret, 1)
+
 	end,
 	deny_turret_harass= function(self, pos)
 		Prints("DennyTurretInHarass", 4)
-		if not get_menu_val(self.checkboxAntiTurretTechGlobal) then return false end
+		if not get_menu_val(self.checkboxAntiTurretTechGlobal) then  
+			return false 
+		end
 	  
 		local should_deny_turret =
 		  (get_menu_val(self.checkboxAntiTurretTechGlobal) and not get_menu_val(self.checkboxAntiTurretTechHarass) and not get_menu_val(self.checkboxAntiTurretTechCombo)) or
@@ -2940,18 +2947,184 @@ local utils = class({
 			Prints("attmept to force move",3)
 			issueorder:move(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
 			Prints("attmepted to force move off turret", 3)
+			
 	  
-	  
-			-- dancing = true
-			-- top = new_click
-			-- mid = new_click
-			-- bot = new_click
+			self.dancing = true
+			self.top = new_click
+			self.mid = new_click
+			self.bot = new_click
 			return true
 		  end
-		return false
+		  return false
 		end
-	  
+
+	end,
+	clear = function(self)
+		if self.dancing then
+			self.dancing = false
+			self.state = "" -- can be "atTop", "atMiddle", or "atBottom"
+			self.top = nil
+			self.mid = nil
+			self.bot = nil
+			orbwalker:enable_move()
+			orbwalker:enable_auto_attacks()
+		end
+	end,
+	should_stop_dancing = function(self)
+		if g_local.is_auto_attacking then return false end
+		self.dancing = false
+		orbwalker:disable_move()
+		local should_dance = false
+
+		-- we only dance in combo mode
+		if g_local.is_auto_attacking or g_local.is_winding_up or (combo:get_mode() ~= mode.Combo_key) then self.dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
+
+		-- and obv only if we have a target who we out speed and outrange
+		local enemy = self.target_selector:get_main_target()
+		if enemy == nil or (enemy.attack_range >= g_local.attack_range) or (enemy.move_speed > g_local.move_speed * 1.15 ) or (self.vec3_util:distance(g_local.origin, enemy.origin) > g_local.attack_range + 350) then 
+			self.dancing = false 
+			orbwalker:enable_move()
+			orbwalker:enable_auto_attacks()
+			return should_dance, enemy
+		end
+
+		-- and only then if we are 1v1
+		local aa_threat_count = 0
+		local enemies =  core.objects:get_enemy_champs(g_local.attack_range + 100)
+		for i, enemy in ipairs(enemies) do
+			local nme_pos = enemy.origin
+			local AA = {
+				-- ignore below here its for prediction
+				type = "linear",
+				range = 99999,
+				delay = 0.15,
+				width = 15,
+				speed = 1700,
+				collision = {
+					["Wall"] = false,
+					["Hero"] = false,
+					["Minion"] = false
+				}
+			}
+			local nme_pred =  _G.DreamPred.GetPrediction(enemy, AA, g_local)
+			if nme_pred then
+				nme_pos = nme_pred.castPosition
+			end
+			-- get distnace
+			if self.vec3_util:distance(nme_pos, g_local.origin) < enemy.attack_range + 120 then
+				aa_threat_count = aa_threat_count + 1
+			end
+		end
+		
+		if aa_threat_count > 1 then
+			self.dancing = false 
+			orbwalker:enable_move()
+			return should_dance, enemy
+		end
+
+		should_dance = true
+		return should_dance, enemy
+	end,
+	position_optimally = function(self)
+		if not get_menu_val(self.checkboxAutoSpace) then self:clear() return false end
+
+		local should_dance, enemy = self:should_stop_dancing()
+		if not enemy or not should_dance then return false end
+		self.dancing = should_dance 
+		if not g_local.is_auto_attacking then
+			orbwalker:disable_auto_attacks()
+		end
+		_G.DynastyOrb:BlockMovement()
+
+		
+		Prints("dancin on " .. enemy.object_name, 4)
+		local nme_pos = enemy.origin
+		local AA = {
+			-- ignore below here its for prediction
+			type = "linear",
+			range = 99999,
+			delay = 0.15,
+			width = 15,
+			speed = 1700,
+			collision = {
+				["Wall"] = false,
+				["Hero"] = false,
+				["Minion"] = false
+			}
+		}
+		local nme_pred =  _G.DreamPred.GetPrediction(enemy, AA, g_local)
+		if nme_pred then
+			nme_pos = nme_pred.castPosition
+		end
+
+		local enemy_theat_range = enemy.attack_range + enemy.bounding_radius + g_local.bounding_radius
+		local my_theat_range = g_local.attack_range + enemy.bounding_radius + g_local.bounding_radius - 30
+
+		-- Calculate the point where the enemy is exactly at the edge of Jinx's attack range
+		local move_to_point = self.vec3_util:extend(nme_pos, game.mouse_pos, my_theat_range)
+
+		-- Adjust the position to be outside of the threat range
+		local distance_from_enemy_to_point = self.vec3_util:distance(enemy.origin, move_to_point)
+
+		if distance_from_enemy_to_point < enemy_theat_range then
+			move_to_point = self.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range +55)
+			--Prints("shoved")
+		else
+			--Prints("not shoved")
+		end
+		local war_path = g_local.path.current_waypoints -- table of vec3
+		local gets_to_close = false
+		-- lets loop these then decide if these are too close to the enemy
+		for i, point in ipairs(war_path) do
+			if self.vec3_util:distance(point, enemy.origin) < enemy_theat_range then
+			gets_to_close = true
+			else
+			end
+		end
+
+		if gets_to_close then
+			move_to_point = self.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range +100)
+			-- Prints("bad path shove")
+		else
+			--Prints("no  path shove")
+		end
+
+
+
+		self.top = self.vec3_util:extend(enemy.origin, g_local.origin, my_theat_range)
+		self.mid = move_to_point
+		self.bot = self.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range)
+		self.dancing = true
+
+
+		-- Execute the movement
+		orbwalker:enable_move()
+		-- console:log("attempt move")
+		_G.DynastyOrb:ForceMovePosition(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
+		issueorder:move(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
+
+		if core.vec3_util:distance(g_local.origin, enemy.origin) > enemy_theat_range then
+			orbwalker:enable_auto_attacks()
+		end
+
+
+		return false
+		end,
+
+	draw = function (self)		
+		if self.top and self.mid and self.bot and self.dancing then
+			self.vec3_util:drawCircleFull(self.top, self.util.Colors.solid.red, 35)
+			self.vec3_util:drawCircleFull(self.mid, self.util.Colors.solid.green, 35)
+			self.vec3_util:drawCircleFull(self.bot, self.util.Colors.solid.blue, 35)
+			--draw a line from me to mid
+			self.vec3_util:drawLine(g_local.origin, self.mid, self.util.Colors.solid.green, 2)
+			self:clear()
+
+	  	end
+		
 	end
+
+
 
 })
 
@@ -3024,19 +3197,23 @@ local x = class({
 		self.visualizer = visualizer:new(self.util, self.helper, self.math, self.objects, self.damagelib)
 		self.debug = debug:new(self.util)
 		self.target_selector = target_selector:new(self.helper, self.math, self.objects, self.damagelib)
-		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.math, self.objects, self.damagelib,self.debug, self.permashow)
+		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.math, self.objects, self.damagelib,self.debug, self.permashow, self.target_selector)
 
 
 		client:set_event_callback("on_tick_always",function() self.target_selector:tick() end)
-		client:set_event_callback("on_draw", function() self.permashow:draw() self.debug:draw() self.target_selector:draw() self.visualizer:draw() end)
+		client:set_event_callback("on_draw", function() self.permashow:draw() self.debug:draw() self.target_selector:draw() self.visualizer:draw() self.utils:draw() end)
 		client:set_event_callback("on_tick_always",function() self.permashow:tick() end)
 	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
+		self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
+
 
 		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
+		client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally() end)
+		
+
+
 	end,
 
 })
 
--- print("-==--=-=-=-= X core Updater: =--=-=-==--=-=-=-=-=")
--- check_for_update(x)
 return x

@@ -352,170 +352,41 @@ function Jinx:registerPS()
   
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
-  core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
-end
-
-dancing = false
-state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
-top, mid, bot = nil, nil, nil
-
-function dance()
-  Prints("state: " .. state, 2)
-  Prints("dancing: " .. tostring(dancing), 2)
-    if not dancing then
-      Prints("dance ONE set!", 2)
-        -- Initialize positions if they haven't been set
-        mid = g_local.origin
-        top = Vec3_Rotate(mid, {x = mid.x, y = mid.y, z = mid.z + 100}, 90)
-        bot = core.vec3_util:extend(mid, top, -100)
-        dancing = true
-    end
-
-    local currentPos = g_local.origin
-
-    if state == "atMiddle" and core.vec3_util:distance(currentPos, mid) < 5 then
-        Prints("move to top from middle", 2)
-        -- move to top from middle
-        orbwalker:move_to(top.x, top.y, top.z)
-        state = "atTop"
-    elseif state == "atTop" and core.vec3_util:distance(currentPos, top) < 5 then
-        Prints("move to bottom from top", 2)
-        -- move to bottom from top
-        orbwalker:move_to(bot.x, bot.y, bot.z)
-        state = "atBottom"
-    elseif state == "atBottom" and core.vec3_util:distance(currentPos, bot) < 5 then
-        Prints("move to middle from bottom", 2)
-        -- move to middle from bottom
-        orbwalker:move_to(top.x, top.y, top.z)
-        state = "atMiddle"
-    end
+  -- core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
 end
 
 
-function Jinx:should_stop_dancing()
-  if g_local.is_auto_attacking then return false end
-  dancing = false
-  orbwalker:disable_move()
-  local should_dance = false
+-- function dance()
+--   Prints("state: " .. state, 2)
+--   Prints("dancing: " .. tostring(dancing), 2)
+--     if not dancing then
+--       Prints("dance ONE set!", 2)
+--         -- Initialize positions if they haven't been set
+--         mid = g_local.origin
+--         top = Vec3_Rotate(mid, {x = mid.x, y = mid.y, z = mid.z + 100}, 90)
+--         bot = core.vec3_util:extend(mid, top, -100)
+--         dancing = true
+--     end
 
-  -- we only dance in combo mode
-  if g_local.is_auto_attacking or (combo:get_mode() ~= Modes.Combo_key) then dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
+--     local currentPos = g_local.origin
 
-  -- and obv only if we have a target who we out speed and outrange
-  local enemy = self:Get_target(Data['AA'])
-  if enemy == nil or (enemy.attack_range >= Data['AA'].long_range) or (enemy.move_speed > g_local.move_speed * 1.15 ) or (core.vec3_util:distance(g_local.origin, enemy.origin) > Data['AA'].long_range + 350) then 
-    dancing = false 
-    orbwalker:enable_move()
-    orbwalker:enable_auto_attacks()
-    return should_dance, enemy
-  end
-
-  -- and only then if we are 1v1
-   local aa_threat_count = 0
-   local enemies =  core.objects:get_enemy_champs(Data['AA'].long_range + 100)
-    for i, enemy in ipairs(enemies) do
-      local nme_pos = enemy.origin
-      local nme_pred =  _G.DreamPred.GetPrediction(enemy, Data['AA'], g_local)
-      if nme_pred then
-        nme_pos = nme_pred.castPosition
-      end
-      -- get distnace
-      if core.vec3_util:distance(nme_pos, g_local.origin) < enemy.attack_range + 120 then
-        aa_threat_count = aa_threat_count + 1
-      end
-    end
-  
-    if aa_threat_count > 1 then
-      dancing = false 
-      orbwalker:enable_move()
-      return should_dance, enemy
-    end
-
-  should_dance = true
-  return should_dance, enemy
-end
-
-function Jinx:position_optimally()
-  if not get_menu_val(self.checkboxAutoSpace) then
-    if dancing then
-      dancing = false 
-      orbwalker:enable_move()
-      orbwalker:enable_auto_attacks()
-    end
-    return false
-  end
-  local should_dance, enemy = self:should_stop_dancing()
-  if not enemy or not should_dance then return false end
-  dancing = should_dance 
-  if not g_local.is_auto_attacking then
-    orbwalker:disable_auto_attacks()
-  end
-  _G.DynastyOrb:BlockMovement()
-
-  
-  Prints("dancin on " .. enemy.object_name, 4)
-  local nme_pos = enemy.origin
-  local nme_pred =  _G.DreamPred.GetPrediction(enemy, Data['AA'], g_local)
-  if nme_pred then
-    nme_pos = nme_pred.castPosition
-  end
-
-  local enemy_theat_range = enemy.attack_range + enemy.bounding_radius + g_local.bounding_radius
-  local my_theat_range = g_local.attack_range + enemy.bounding_radius + g_local.bounding_radius - 30
-
-  -- Calculate the point where the enemy is exactly at the edge of Jinx's attack range
-  local move_to_point = core.vec3_util:extend(nme_pos, game.mouse_pos, my_theat_range)
-
-  -- Adjust the position to be outside of the threat range
-  local distance_from_enemy_to_point = core.vec3_util:distance(enemy.origin, move_to_point)
-
-  if distance_from_enemy_to_point < enemy_theat_range then
-      move_to_point = core.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range +55)
-      --Prints("shoved")
-  else
-    --Prints("not shoved")
-  end
-  local war_path = g_local.path.current_waypoints -- table of vec3
-  local gets_to_close = false
-  -- lets loop these then decide if these are too close to the enemy
-  for i, point in ipairs(war_path) do
-    if core.vec3_util:distance(point, enemy.origin) < enemy_theat_range then
-      gets_to_close = true
-    else
-    end
-  end
-
-  if gets_to_close then
-    move_to_point = core.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range +100)
-    -- Prints("bad path shove")
-  else
-    --Prints("no  path shove")
-  end
-
-
-
-  top = core.vec3_util:extend(enemy.origin, g_local.origin, my_theat_range)
-  mid = move_to_point
-  bot = core.vec3_util:extend(enemy.origin, g_local.origin, enemy_theat_range)
-  dancing = true
-
-
-  -- Execute the movement
-  orbwalker:enable_move()
-  -- console:log("attempt move")
-  _G.DynastyOrb:ForceMovePosition(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
-  issueorder:move(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
-  -- issueorder:move(move_to_point)
-  -- console:log("move attempted")
-
-  -- enable auto attacks if we're far enough away now
-  if core.vec3_util:distance(g_local.origin, enemy.origin) > enemy_theat_range then
-    orbwalker:enable_auto_attacks()
-  end
-
-
-  return false
-end
+--     if state == "atMiddle" and core.vec3_util:distance(currentPos, mid) < 5 then
+--         Prints("move to top from middle", 2)
+--         -- move to top from middle
+--         orbwalker:move_to(top.x, top.y, top.z)
+--         state = "atTop"
+--     elseif state == "atTop" and core.vec3_util:distance(currentPos, top) < 5 then
+--         Prints("move to bottom from top", 2)
+--         -- move to bottom from top
+--         orbwalker:move_to(bot.x, bot.y, bot.z)
+--         state = "atBottom"
+--     elseif state == "atBottom" and core.vec3_util:distance(currentPos, bot) < 5 then
+--         Prints("move to middle from bottom", 2)
+--         -- move to middle from bottom
+--         orbwalker:move_to(top.x, top.y, top.z)
+--         state = "atMiddle"
+--     end
+-- end
 
 
 function Jinx:init()
@@ -559,9 +430,9 @@ function Jinx:init()
 
     client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
-    -- client:set_event_callback("on_tick_always", function(...) self:position_optimally() end)
-
     
+
+
     -- _G.DynastyOrb:AddCallback("OnUnKillable", function(...) self:turret_spell_farm(...) end)
 end
 
@@ -791,40 +662,6 @@ local function Get_minions(range)
   end
 
   return minions_in_range
-end
-
-function Jinx:deny_turret_harass(pos)
-  Prints("DennyTurretInHarass", 4)
-  if not get_menu_val(self.checkboxAntiTurretTechGlobal) then print("end") end
-
-  local should_deny_turret =
-    (get_menu_val(self.checkboxAntiTurretTechGlobal) and not get_menu_val(self.checkboxAntiTurretTechHarass) and not get_menu_val(self.checkboxAntiTurretTechCombo)) or
-    (get_menu_val(self.checkboxAntiTurretTechHarass) and combo:get_mode() == Modes.Harass_key) or
-    (get_menu_val(self.checkboxAntiTurretTechCombo) and combo:get_mode() == Modes.Combo_key)
-
-
--- if pos is under turret and mode is harass redirect click outside of turret range using exttend 
-  if pos and should_deny_turret then
-    local isunder, turret = core.helper:is_under_turret(pos)
-    if isunder then
-      Prints("is under turret yeah " .. type(pos),4)
-      local new_click = core.vec3_util:extend(turret.origin, pos, 950)
-      _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
-      _G.DynastyOrb:BlockMovement()
-      Prints("attmept to force move",3)
-      issueorder:move(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
-      Prints("attmepted to force move off turret", 3)
-
-
-      dancing = true
-      top = new_click
-      mid = new_click
-      bot = new_click
-      return true
-    end
-  return false
-  end
-
 end
 
 function Jinx:exit_rocket_logic()
