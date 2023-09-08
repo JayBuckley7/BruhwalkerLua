@@ -957,7 +957,7 @@ local function Get_minions(range)
 end
 
 function Jinx:deny_turret_harass(pos)
-  Prints("DennyTurretInHarass", 1)
+  Prints("DennyTurretInHarass", 4)
   if not get_menu_val(self.checkboxAntiTurretTechGlobal) then print("end") end
 
   local should_deny_turret =
@@ -970,7 +970,7 @@ function Jinx:deny_turret_harass(pos)
   if pos and should_deny_turret then
     local isunder, turret = core.helper:is_under_turret(pos)
     if isunder then
-      Prints("is under turret yeah " .. type(pos))
+      Prints("is under turret yeah " .. type(pos),4)
       local new_click = Vec3_Extend(turret.origin, pos, 950)
       _G.DynastyOrb:ForceMovePosition(new_click)-- Can be used here or other callbacks, will force the next orb movement to that position
       _G.DynastyOrb:BlockMovement()
