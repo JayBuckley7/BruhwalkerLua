@@ -1687,8 +1687,35 @@ local target_selector = class({
 		self.lastForceChange = game.game_time
 	end,
 
-	GET_STATUS = function(self)
-		return menu:get_value(self.ts_enabled)
+	GET_STATUS = function(self,new_state)
+		return get_menu_val(self.ts_enabled)
+	end,
+	TOGGLE_STATUS = function(self,new_state)
+		new_state = new_state or nil
+		local control_id = self.ts_enabled
+		local was_enabled = self:GET_STATUS()
+
+		-- Prints("was_enabled1: " .. tostring(new_state))
+		if new_state == nil then
+			if was_enabled  
+				then new_state = 1
+
+				else new_state = 0
+			end
+		end
+		local invis_menu = menu:is_sub_category_hidden(self.nav)
+		if new_state == 0 then 
+			if not invis_menu then menu:hide_sub_category(self.nav) end
+		elseif new_state == 1 then
+			if invis_menu then menu:show_sub_category(self.nav)end
+		end
+				-- body
+
+
+		-- print("swapping toooo " .. new_state)
+		-- local new_status = not status
+		menu:set_value(control_id, new_state)
+		return new_state
 	end,
 
 	FORCED_TARGET = nil,
@@ -2810,7 +2837,7 @@ local x = class({
 
 
 	init = function(self)
-		local LuaVersion = 0.6
+		local LuaVersion = 0.8
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"

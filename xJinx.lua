@@ -1,6 +1,9 @@
 if not _G.DreamPred then
   require("DreamPred")
 end
+
+local DreamTS = require("DreamTS")
+
 if not _G.DynastyOrb then
   require("DynastyOrb")
 end
@@ -10,9 +13,7 @@ require("PKDamageLib")
 g_local = game.local_player
 REQUIRE_SLOTTED_RESTART = false
 
-if game.local_player.champ_name ~= "Jinx" then
-    return
-end
+if game.local_player.champ_name ~= "Jinx" then return end
 
 local ml = require "VectorMath"
 
@@ -308,20 +309,56 @@ function Jinx:new()
     return obj
 end
 
+function Jinx:ToggleTS()
+  -- Prints("toggle ts in...")
+  -- Prints("type control: " .. type(self.TS_to_use), 1)
+  local currVal = core.target_selector:TOGGLE_STATUS()
+-- menu:set_value(id, value)
+
+  -- Prints("currValpretoggle: " .. tostring(currVal), 1)
+  if currVal == 0 then
+    Prints("swapping to xTS",1)
+    core.target_selector:TOGGLE_STATUS(1)
+    menu:hide_sub_category(self.sections.Taget_Selector)
+
+  else
+    Prints("swapping to dreamPred",1)
+    core.target_selector:TOGGLE_STATUS(0)
+    if menu:is_sub_category_hidden(self.sections.Taget_Selector) then
+      menu:show_sub_category(self.sections.Taget_Selector)
+    end
+
+  end
+  -- Prints("currValposttoggle: " .. tostring(currVal), 1)
+end
+
 function Jinx:add_jmenus()
     self.navigation = menu:add_category("xJinx")
+
+
+    
     self.Jinx_enabled = menu:add_checkbox("Enabled", self.navigation, 1)
 
     menu:add_label("xJinx",  self.navigation)
+    self.TS_to_use = menu:add_combobox("Taget Selector to use", self.navigation, {"xTarget Selector", "DreamPred"}, 1)
+
+
     local sections = {
-        combo = menu:add_subcategory("combo", self.navigation),
-        harass = menu:add_subcategory("harass", self.navigation),
-        clear = menu:add_subcategory("farm", self.navigation),
-        agc = menu:add_subcategory("gap close", self.navigation),
-        auto = menu:add_subcategory("auto", self.navigation),
-        misc = menu:add_subcategory("misc", self.navigation),
-        draw = menu:add_subcategory("drawings", self.navigation)
-    }
+      Taget_Selector = menu:add_subcategory("DreamTS --->", self.navigation),
+      combo = menu:add_subcategory("combo", self.navigation),
+      harass = menu:add_subcategory("harass", self.navigation),
+      clear = menu:add_subcategory("farm", self.navigation),
+      agc = menu:add_subcategory("gap close", self.navigation),
+      auto = menu:add_subcategory("auto", self.navigation),
+      misc = menu:add_subcategory("misc", self.navigation),
+      draw = menu:add_subcategory("drawings", self.navigation),
+      }
+      self.sections = sections
+      self.TS = DreamTS(sections.Taget_Selector, {Damage = DreamTS.Damages.AD})
+      menu:hide_sub_category(sections.Taget_Selector)
+
+
+    menu:set_callback(self.TS_to_use, function() self:ToggleTS() end)
 
   -- Combo
     self.q_combo = menu:add_checkbox("use Q ", sections.combo, 1)
@@ -403,7 +440,7 @@ function Jinx:add_jmenus()
     self.checkboxDrawQAlt = menu:add_checkbox("Draw alternate Q range",  sections.draw, 1)
     self.checkboxDrawW = menu:add_checkbox("Draw W range",  sections.draw, 1)
 
-    self.label = menu:add_label("version "..(tostring(0.1)), self.navigation)
+    self.label = menu:add_label("version "..(tostring(self.LuaVersion)), self.navigation)
     -- console:log("val: " .. get_menu_val(self.Jinx_enabled))
     
     return self.jmenu
@@ -488,7 +525,7 @@ function Jinx:should_stop_dancing()
   if g_local.is_auto_attacking or (combo:get_mode() ~= Combo_key) then dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
 
   -- and obv only if we have a target who we out speed and outrange
-  local enemy = self:Get_target()
+  local enemy = self:Get_target(Data['AA'])
   if enemy == nil or (enemy.attack_range >= Data['AA'].long_range) or (enemy.move_speed > g_local.move_speed * 1.15 ) or (Get_distance(g_local.origin, enemy.origin) > Data['AA'].long_range + 350) then 
     dancing = false 
     orbwalker:enable_move()
@@ -607,7 +644,9 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 0.7
+  local LuaVersion = 0.8
+  self.luaversion = LuaVersion
+
 	local LuaName = "xJinx"
 	local lua_file_name = "xJinx.lua"
 	local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xJinx.lua"
@@ -827,10 +866,16 @@ function Jinx:get_sorted_r_targets(enemies, delay)
     )
 end
 
-function Jinx:Get_target()
+function Jinx:Get_target(spell_data)
     Prints("gettgt", 4)
+    local pred = nil
 
-    -- if core.target_selector:GET_STATUS() then print("ts: true") else print("ts: false") end
+    if core.target_selector:GET_STATUS() then 
+      -- print("ts: true") 
+    else 
+      -- print("ts: false") 
+    end
+
     local target = core.target_selector:get_main_target()
 
 
@@ -857,11 +902,25 @@ function Jinx:Get_target()
           end
         end
       end
-    else console:log("oo") end--   target = features.target_selector:get_default_target() 
+    else 
+      -- print("nabbing targets and pred")
+      local dream_target,dream_pred = nil,nil
+      if self.TS then 
+        dream_target,dream_pred = self.TS:GetTarget(spell_data, g_local) 
+      end
+      -- print("nabbed")
+      target = dream_target
+      pred = dream_pred
+
+      -- if w_targets and #w_targets > 0 then
+      --   target = w_targets[0]
+      -- end
+      
+    end--   target = features.target_selector:get_default_target() 
   
-    -- if target == nil then
-    --   -- Prints("no target", 1)
-    -- end
+    if target == nil then
+      Prints("no target", 4)
+    end
     --set orbwalker target
     Prints("attemtp set orb tgt ", 4)
     if target then 
@@ -869,7 +928,7 @@ function Jinx:Get_target()
     end
     Prints("attemted set orb tgt ", 4)
 
-    return target
+    return target,pred
   end
 
 -- -=-=-=--==-=-=-==--==-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-==-=-=-=-=-=-=-=-
@@ -1037,7 +1096,7 @@ local function save_minion_with_q()
 
 function Jinx:combo_harass_q()
   
-    local target = self:Get_target()
+    local target = self:Get_target(Data['AA'])
    
 
     -- Prints("enemy count: " ..core.objects:count_enemy_champs(250, target.origin)  .. " / " .. get_menu_val(self.q_combo_aoe_count) , 3)
@@ -1093,7 +1152,7 @@ end
 
 
  function Jinx:should_skip_w_cast()
-  local target = self:Get_target()
+  local target = self:Get_target(Data['W'])
   local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
   if not in_Q_range then return false end
 
@@ -1151,7 +1210,7 @@ end
   --if not should then false
   if not should_w_combo and not should_w_Jungle_clear  then return false end
 
-  local target = self:Get_target()
+  local target = self:Get_target(Data['W'])
   if should_w_combo and target then
     local in_Q_range = target:distance_to(g_local.origin) <= Data['AA'].long_range + 15
     if not in_Q_range then return false end
@@ -1203,7 +1262,7 @@ end
 
  function Jinx:w_combo_harass_logic()
   Prints("w combo/harass logic", 4)
-  local target = self:Get_target()
+  local target = self:Get_target(Data['W'])
   if target == nil then return false end
 
   if self:should_skip_w_cast() then return false end
@@ -1253,7 +1312,7 @@ end
 function Jinx:spell_w()
   Prints("w spell in", 4)
 
-  local target = self:Get_target()
+  local target = self:Get_target(Data['W'])
   local mode = combo:get_mode()
 
   local should_w_combo = (mode == Combo_key and get_menu_val(self.w_combo))
@@ -1365,7 +1424,7 @@ end
 function Jinx:should_e_slowed()
   Prints("e spell slow check", 4)
 
-  local target = self:Get_target()
+  local target = self:Get_target(Data['E'])
   if target and core.helper:is_alive(target) then
     local e_hit =  _G.DreamPred.GetPrediction(target, Data['E'], g_local)
     
@@ -1992,7 +2051,7 @@ function Jinx:validateSplashMinionAndtarget()
 end
 
 function Jinx:findSplashableMinion()
-  local target = self:Get_target()
+  local target = self:Get_target(Data['AA'])
   if target == nil then return false end
   --update the global minion table nearby the target
   --Prints("finding splash minion", 1)
@@ -2022,7 +2081,7 @@ function Jinx:Splash_harass()
   Prints("splash harass in", 4)
   if get_menu_val(self.checkboxJinxSplashHarass) == false then return false end
   -- if features.orbwalker:is_in_attack() or features.evade:is_active() or not core.objects:can_cast(e_spell_slot.q) then return false end
-  local target = self:Get_target()
+  local target = self:Get_target(Data['AA'])
   if target == nil then return false end
   SplashableTargetIndex = target.object_id
   Prints("sh obtained splash index: " .. tostring(SplashableTargetIndex), 5)
