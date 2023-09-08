@@ -917,7 +917,7 @@ local objects = class({
 		for _, entity in ipairs(game.minions) do
 			if entity and entity.is_enemy then
 				if entity.origin and entity:distance_to(pos) <= range then
-					if core.helper:is_alive(entity) and entity.health > 0 then
+					if self.xHelper:is_alive(entity) and entity.health > 0 then
 						local object_name = entity.object_name:lower()
 						if string.find(object_name, "scrab") or string.find(object_name, "dragon") or string.find(object_name, "riftherald") or string.find(object_name, "baron")
 							or string.find(object_name, "gromp") or string.find(object_name, "blue") or string.find(object_name, "murkwolf")
@@ -2923,6 +2923,20 @@ local utils = class({
 		self.anti_turret = menu:add_subcategory("Auto Dance (auto spacing)", self.nav)
 		self.checkboxAutoSpace = menu:add_checkbox("try auto dance(spacing beta)", self.anti_turret, 1)
 
+		-- draw turret prio
+		self.checkboxDrawTurretPrio = menu:add_checkbox("draw turret prio", self.anti_turret, 1)
+
+	end,
+	clear = function(self)
+		if self.dancing then
+			self.dancing = false
+			self.state = "" -- can be "atTop", "atMiddle", or "atBottom"
+			self.top = nil
+			self.mid = nil
+			self.bot = nil
+			orbwalker:enable_move()
+			orbwalker:enable_auto_attacks()
+		end
 	end,
 	deny_turret_harass= function(self, pos)
 		Prints("DennyTurretInHarass", 4)
@@ -2959,17 +2973,6 @@ local utils = class({
 		end
 
 	end,
-	clear = function(self)
-		if self.dancing then
-			self.dancing = false
-			self.state = "" -- can be "atTop", "atMiddle", or "atBottom"
-			self.top = nil
-			self.mid = nil
-			self.bot = nil
-			orbwalker:enable_move()
-			orbwalker:enable_auto_attacks()
-		end
-	end,
 	should_stop_dancing = function(self)
 		if g_local.is_auto_attacking then return false end
 		self.dancing = false
@@ -2977,7 +2980,7 @@ local utils = class({
 		local should_dance = false
 
 		-- we only dance in combo mode
-		if g_local.is_auto_attacking or g_local.is_winding_up or (combo:get_mode() ~= mode.Combo_key) then self.dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return false end
+		if g_local.is_auto_attacking or g_local.is_winding_up or (combo:get_mode() ~= mode.Combo_key) then self.dancing = false orbwalker:enable_move() orbwalker:enable_auto_attacks() return should_dance end
 
 		-- and obv only if we have a target who we out speed and outrange
 		local enemy = self.target_selector:get_main_target()
@@ -2990,7 +2993,7 @@ local utils = class({
 
 		-- and only then if we are 1v1
 		local aa_threat_count = 0
-		local enemies =  core.objects:get_enemy_champs(g_local.attack_range + 100)
+		local enemies =  self.objects:get_enemy_champs(g_local.attack_range + 100)
 		for i, enemy in ipairs(enemies) do
 			local nme_pos = enemy.origin
 			local AA = {
@@ -3103,7 +3106,7 @@ local utils = class({
 		_G.DynastyOrb:ForceMovePosition(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
 		issueorder:move(move_to_point)-- Can be used here or other callbacks, will force the next orb movement to that position
 
-		if core.vec3_util:distance(g_local.origin, enemy.origin) > enemy_theat_range then
+		if self.vec3_util:distance(g_local.origin, enemy.origin) > enemy_theat_range then
 			orbwalker:enable_auto_attacks()
 		end
 
@@ -3121,6 +3124,22 @@ local utils = class({
 			self:clear()
 
 	  	end
+		-- if turret prio
+		if get_menu_val(self.checkboxDrawTurretPrio) then
+			for _, v in ipairs(game.turrets) do
+				local turret = v
+				if turret and not turret.is_enemy and self.vec3_util:distance(turret.origin, g_local.origin) < g_local.attack_range+350 then
+				  local minions = self.objects:get_enemy_minions(860, turret.origin)
+				  if #minions > 0 then 
+					local sorted = self.objects:get_ordered_turret_targets(turret, minions)
+					for i, minion in ipairs(sorted) do
+					  self.vec3_util:drawCircle(minion.origin, util.Colors.transparent.lightCyan, 50)
+					  self.vec3_util:drawText(i, minion.origin, util.Colors.solid.lightCyan, 50)
+					end
+				  end
+				end
+			  end
+		end
 		
 	end
 
@@ -3159,7 +3178,7 @@ local x = class({
 
 
 	init = function(self)
-		local LuaVersion = 0.9
+		local LuaVersion = 1.0
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"

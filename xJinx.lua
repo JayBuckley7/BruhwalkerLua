@@ -329,19 +329,7 @@ end
 
 function farm()
   -- Prints("farm in")
-  for _, v in ipairs(game.turrets) do
-    local turret = v
-    if turret and not turret.is_enemy and core.vec3_util:distance(turret.origin, g_local.origin) < Data['AA'].long_range then
-      local minions = core.objects:get_enemy_minions(860, turret.origin)
-      if #minions > 0 then 
-        local sorted = core.objects:get_ordered_turret_targets(turret, minions)
-        for i, minion in ipairs(sorted) do
-          core.vec3_util:drawCircle(minion.origin, Colors.transparent.lightCyan, 50)
-          core.vec3_util:drawText(i, minion.origin, Colors.solid.lightCyan, 50)
-        end
-      end
-    end
-  end
+
 end
 
 function Jinx:registerPS()
@@ -352,7 +340,6 @@ function Jinx:registerPS()
   
   core.permashow:register("Semi-Auto Ult", "Semi-Auto Ult", "U")
   core.permashow:register("Extend AA To Harass", "Extend AA To Harass", "I", true, self.q_harass)
-  -- core.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.checkboxAutoSpace)
 end
 
 
@@ -390,7 +377,7 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 0.9
+  local LuaVersion = 1.0
   self.luaversion = LuaVersion
 
 	local LuaName = "xJinx"
@@ -1886,8 +1873,6 @@ function Jinx:on_draw()
     -- Prints("draw Q", 3)
     self:visualize_spell_range()
   end
-
-  farm()
 
   -- draw all unkillable minions
   -- if #MinionsUnkillable > 0 then
