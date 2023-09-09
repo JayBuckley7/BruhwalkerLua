@@ -229,7 +229,7 @@ function Jinx:add_jmenus()
       draw = menu:add_subcategory("drawings", self.navigation),
       }
       self.sections = sections
-      self.TS = DreamTS(sections.Taget_Selector, {Damage = DreamTS.Damages.AD})
+      -- self.TS = DreamTS(sections.Taget_Selector, {Damage = DreamTS.Damages.AD})
       menu:hide_sub_category(sections.Taget_Selector)
 
 
@@ -326,12 +326,6 @@ function Jinx:add_jmenus()
     return self.jmenu
 end  
 
-
-function farm()
-  -- Prints("farm in")
-
-end
-
 function Jinx:registerPS()
   core.permashow:set_title(name)
   console:log("registering permashow q farm")
@@ -420,7 +414,6 @@ function Jinx:init()
     
 
 
-    -- _G.DynastyOrb:AddCallback("OnUnKillable", function(...) self:turret_spell_farm(...) end)
 end
 
 function Jinx:ready(spell)
@@ -741,7 +734,6 @@ local function save_minion_with_q()
   end
 
 function Jinx:combo_harass_q()
-  
     local target = self:Get_target(Data['AA'])
    
 
@@ -795,7 +787,6 @@ function Jinx:spell_q()
 
     return false
 end
-
 
  function Jinx:should_skip_w_cast()
   local target = self:Get_target(Data['W'])
@@ -857,6 +848,7 @@ end
   if not should_w_combo and not should_w_Jungle_clear  then return false end
 
   local target = self:Get_target(Data['W'])
+
   if should_w_combo and target then
     local in_Q_range = core.vec3_util:distance(g_local.origin, target.origin) <= Data['AA'].long_range + 15
     if not in_Q_range then return false end
@@ -888,7 +880,7 @@ end
   end
 
   if should_w_Jungle_clear then
-    local in_Q_range = prev_core.vec3_util:distance(g_local.origin, target.origin) <= Data['AA'].long_range + 15
+    local in_Q_range = core.vec3_util:distance(g_local.origin, prev_target.origin) <= Data['AA'].long_range + 15
     if not in_Q_range then return false end
 
     local aadmg = core.damagelib:calc_aa_dmg(g_local, prev_target)
@@ -904,6 +896,7 @@ end
     end
 
   end
+
  end
 
  function Jinx:w_combo_harass_logic()
@@ -965,8 +958,6 @@ function Jinx:spell_w()
   local curr_mana_perc =  g_local.mana / g_local.max_mana * 100 
   local should_w_harass = (mode == Modes.Harass_key and get_menu_val(self.w_harass) and menu:get_value(self.w_harass_mana) <= curr_mana_perc)
   local should_w_ks = (get_menu_val(self.w_KS))
-  local should_w_Jungle_clear = (mode == Modes.Clear_key and get_menu_val(self.q_clear_aoe))
-  -- no w in evade or no target or out of range
 
   -- not evade:is_evading() and
   if  target and core.vec3_util:distance(g_local.origin, target.origin) <= Data['W'].range then
@@ -975,10 +966,6 @@ function Jinx:spell_w()
     --W KS logic
     if should_w_ks and self:w_ks_logic() then return true end
   end
-  -- -- Prints("should_w_Jungle_clear: " .. tostring(should_w_Jungle_clear) .. "can weave: " .. tostring(can_weave), 1)
-
-  -- this is diabled on my bruh walker build 
-  -- if should_w_Jungle_clear and can_weave and fast_clear_w_Logic() then return true end
 
   return false
 end
