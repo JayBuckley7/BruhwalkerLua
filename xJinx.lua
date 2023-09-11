@@ -868,7 +868,7 @@ end
         local w_hit =  _G.DreamPred.GetPrediction(target, Data['W'], g_local)
 
         if w_hit and self:should_try_w_hit_pred(w_hit) then
-          Prints("combo: casting w hitChance is " .. chance_strings[w_hit.hitChance], 2)
+          -- Prints("combo: casting w hitChance is " .. chance_strings[w_hit.hitChance], 2)
           local castPos = w_hit.castPosition
           spellbook:cast_spell(e_spell_slot.w, Data['W'].delay, castPos.x, castPos.y, castPos.z)
     

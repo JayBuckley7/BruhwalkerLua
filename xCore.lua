@@ -22,6 +22,15 @@ if not file_manager:file_exists(file_name) then
    console:log("Please Reload with F5")
 end
 
+local Prints = function(str, level)
+	if x then 
+		if x.debug then
+			x.debug:Print("opop", level)
+		end
+	else
+		console:log("scoob?")
+	end
+end
 
 e_spell_slot = {
 	q = SLOT_Q,
@@ -29,6 +38,8 @@ e_spell_slot = {
 	e = SLOT_E,
 	r = SLOT_R
 	}
+
+
 
 XVisMenuCat = nil
 XTSMenuCat = nil
@@ -2892,6 +2903,8 @@ local debug = class({
 -- Utils
 --------------------------------------------------------------------------------
 
+
+
 local utils = class({
 	nav = nil,
 	XutilMenuCat = nil,
@@ -3153,8 +3166,15 @@ local utils = class({
 -- Callbacks
 
 --------------------------------------------------------------------------------
+local function init_alone(x)
+	console:log("xCore: init_alone")
+	x:init()
+end
 
-local x = class({
+
+	
+
+x = class({
 	VERSION = "0.5",
 	util = nil,
 	permashow = nil,
@@ -3178,6 +3198,8 @@ local x = class({
 
 
 	init = function(self)
+		if coreAlone then if not menu:is_control_hidden(coreAlone) then menu:hide_control(coreAlone) end end
+		
 		local LuaVersion = 1.0
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
@@ -3234,5 +3256,13 @@ local x = class({
 	end,
 
 })
+
+
+if coreAlone == nil then 
+	if XutilMenuCat == nil then XutilMenuCat = menu:add_category("xUtils") end
+	coreAlone = menu:add_button("load xCore", XutilMenuCat, function() init_alone(x) end, "tool_tip")  
+end
+
+
 
 return x
