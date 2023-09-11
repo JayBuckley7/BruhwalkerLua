@@ -23,9 +23,9 @@ if not file_manager:file_exists(file_name) then
 end
 
 local Prints = function(str, level)
-	if x then 
-		if x.debug then
-			x.debug:Print("opop", level)
+	if xCore_X then 
+		if xCore_X.debug then
+			xCore_X.debug:Print("opop", level)
 		end
 	else
 		console:log("scoob?")
@@ -1149,7 +1149,8 @@ local xHelper = class({
 		if unit:has_buff_type(buff_type.Snare) then ccd = true end
 		return ccd
 	end,
-	is_under_turret = function(self,pos)
+	is_under_turret = function(self,pos,check_ally)
+		check_ally = check_ally or false
 
 		local range = 905
 		local turret = nil
@@ -1159,6 +1160,15 @@ local xHelper = class({
 			if dist_away < range then return true, unit end
 		  end
 		end
+		if check_ally then
+			for _, unit in ipairs(game.turrets) do
+				if unit  and unit.is_ally and not unit.is_dead then
+					local dist_away = vec3Util:distance(unit.origin, pos)
+					if dist_away < range then return true, unit end
+				end
+			end
+		end
+
 		return false, nil
 	  end,
 	is_valid = function(self, unit)
@@ -3166,15 +3176,15 @@ local utils = class({
 -- Callbacks
 
 --------------------------------------------------------------------------------
-local function init_alone(x)
+local function init_alone(xCore_X)
 	console:log("xCore: init_alone")
-	x:init()
+	xCore_X:init()
 end
 
 
 	
 
-x = class({
+xCore_X = class({
 	VERSION = "0.5",
 	util = nil,
 	permashow = nil,
@@ -3200,7 +3210,7 @@ x = class({
 	init = function(self)
 		if coreAlone then if not menu:is_control_hidden(coreAlone) then menu:hide_control(coreAlone) end end
 		
-		local LuaVersion = 1.3
+		local LuaVersion = 1.4
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua"
@@ -3260,9 +3270,9 @@ x = class({
 
 if coreAlone == nil then 
 	if XutilMenuCat == nil then XutilMenuCat = menu:add_category("xUtils") end
-	coreAlone = menu:add_button("load xCore", XutilMenuCat, function() init_alone(x) end, "tool_tip")  
+	coreAlone = menu:add_button("load xCore", XutilMenuCat, function() init_alone(xCore_X) end, "tool_tip")  
 end
 
 
 
-return x
+return xCore_X
