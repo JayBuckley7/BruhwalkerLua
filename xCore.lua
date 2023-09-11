@@ -3200,10 +3200,10 @@ x = class({
 	init = function(self)
 		if coreAlone then if not menu:is_control_hidden(coreAlone) then menu:hide_control(coreAlone) end end
 		
-		local LuaVersion = 1.1
+		local LuaVersion = 1.2
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
-		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"
+		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua"
 		local version_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/versions/xCore.lua.version.txt"
 	
 		do
