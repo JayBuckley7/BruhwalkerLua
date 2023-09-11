@@ -2937,7 +2937,7 @@ local utils = class({
 		self.checkboxAutoSpace = menu:add_checkbox("try auto dance(spacing beta)", self.anti_turret, 1)
 
 		-- draw turret prio
-		self.checkboxDrawTurretPrio = menu:add_checkbox("draw turret prio", self.anti_turret, 1)
+		self.checkboxDrawTurretPrio = menu:add_checkbox("draw turret prio", self.nav, 1)
 
 	end,
 	clear = function(self)
@@ -3147,7 +3147,7 @@ local utils = class({
 					local sorted = self.objects:get_ordered_turret_targets(turret, minions)
 					for i, minion in ipairs(sorted) do
 					  self.vec3_util:drawCircle(minion.origin, util.Colors.transparent.lightCyan, 50)
-					  self.vec3_util:drawText(i, minion.origin, util.Colors.solid.lightCyan, 50)
+					  self.vec3_util:drawText(i, minion.origin, util.Colors.solid.lightCyan, 30)
 					end
 				  end
 				end
@@ -3200,7 +3200,7 @@ x = class({
 	init = function(self)
 		if coreAlone then if not menu:is_control_hidden(coreAlone) then menu:hide_control(coreAlone) end end
 		
-		local LuaVersion = 1.2
+		local LuaVersion = 1.3
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua"
