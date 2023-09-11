@@ -2386,16 +2386,16 @@ local permashow = class({
 				return true
 			end
 			
-			for i, hotkey in ipairs(self.hotkeys_ordered) do
-				local state_text, _ = self:get_state_text_and_color(hotkey)
-				local state_x = hotkey.state_rect.x + 55
-				local state_y = hotkey.state_rect.y + 55
-				if self:is_cursor_inside_text(pos, state_text, state_x, state_y, font, 15) then
-					hotkey.state = not hotkey.state -- todo fix
-					-- g_input:send_mouse_key_event(e_mouse_button.left, e_key_state.key_up)
-					break
-				end
-			end
+			-- for i, hotkey in ipairs(self.hotkeys_ordered) do
+			-- 	local state_text, _ = self:get_state_text_and_color(hotkey)
+			-- 	local state_x = hotkey.state_rect.x + 55
+			-- 	local state_y = hotkey.state_rect.y + 55
+			-- 	if self:is_cursor_inside_text(pos, state_text, state_x, state_y, font, 15) then
+			-- 		hotkey.state = not hotkey.state -- todo fix
+			-- 		-- g_input:send_mouse_key_event(e_mouse_button.left, e_key_state.key_up)
+			-- 		break
+			-- 	end
+			-- end
 		else
 			self.dragging = false
 		end
@@ -3200,7 +3200,7 @@ x = class({
 	init = function(self)
 		if coreAlone then if not menu:is_control_hidden(coreAlone) then menu:hide_control(coreAlone) end end
 		
-		local LuaVersion = 1.0
+		local LuaVersion = 1.1
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xxCore.lua"

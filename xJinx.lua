@@ -371,7 +371,7 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 1.0
+  local LuaVersion = 1.1
   self.luaversion = LuaVersion
 
 	local LuaName = "xJinx"
