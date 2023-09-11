@@ -1,4 +1,4 @@
-
+local LuaVersion = 1.5
 if not _G.DreamPred then
   require("DreamPred")
 end
@@ -320,7 +320,7 @@ function Jinx:add_jmenus()
     self.checkboxDrawQAlt = menu:add_checkbox("Draw alternate Q range",  sections.draw, 1)
     self.checkboxDrawW = menu:add_checkbox("Draw W range",  sections.draw, 1)
 
-    self.label = menu:add_label("version "..(tostring(self.LuaVersion)), self.navigation)
+    self.label = menu:add_label("version "..(tostring(self.luaversion)), self.navigation)
     -- console:log("val: " .. get_menu_val(self.Jinx_enabled))
     
     return self.jmenu
@@ -371,7 +371,6 @@ end
 
 
 function Jinx:init()
-  local LuaVersion = 1.2
   self.luaversion = LuaVersion
 
 	local LuaName = "xJinx"
@@ -661,13 +660,13 @@ function Jinx:exit_rocket_logic()
     end
 
     --if orbawalker target is minion and mode is clear or harass and target is in range of aa and we are in rocket mode then swap q to minigun
-    local target = orbwalker:get_orbwalker_target()
-    if target and target.is_minion and core.helper:is_alive(target) and (mode == Modes.Clear_key or mode == Modes.Harass_key) and core.vec3_util:distance(g_local.origin, target.origin) < Data['AA'].long_range and Data['AA'].rocket_launcher then
-      Prints("exit rocket mode, bcuz minion in aa range", 2)
-      spellbook:cast_spell(e_spell_slot.q)
-      Last_Q_swap_time = game.game_time
-      return true
-    end
+    -- local target = orbwalker:get_orbwalker_target()
+    -- if target and target.is_minion and core.helper:is_alive(target) and (mode == Modes.Clear_key or mode == Modes.Harass_key) and core.vec3_util:distance(g_local.origin, target.origin) < Data['AA'].long_range and Data['AA'].rocket_launcher then
+    --   Prints("exit rocket mode, bcuz minion in aa range", 2)
+    --   spellbook:cast_spell(e_spell_slot.q)
+    --   Last_Q_swap_time = game.game_time
+    --   return true
+    -- end
     return false
   end
 
@@ -681,8 +680,9 @@ function Jinx:exit_rocket_logic()
       Prints("count q for aoe splash would be: " .. tostring(nearby), 4)
 
       if nearby >= menu:get_value(self.q_clear_aoe_count) then
+        if core.helper:is_under_turret(g_local.origin, true) then return false end
         if not Data['AA'].rocket_launcher then
-          Prints("q AOE to hit " .. tostring(nearby) .. "minions", 2)
+          Prints("q AOE to hit " .. tostring(nearby) .. "minions and is under tower: " ..tostring(core.helper:is_under_turret(g_local.origin, true)) , 2)
           spellbook:cast_spell(e_spell_slot.q)
           Last_Q_swap_time = game.game_time
           return true
@@ -741,19 +741,17 @@ function Jinx:combo_harass_q()
     
     -- aoe splash logic
     if get_menu_val(self.q_combo_aoe) and target and core.objects:count_enemy_champs(250, target.origin) >= menu:get_value(self.q_combo_aoe_count) then
-      if not Data['AA'].rocket_launcher then
-        Prints("q cast aoe", 3)
-        spellbook:cast_spell(e_spell_slot.q)
-        Last_Q_swap_time = game.game_time
-        return true
-      end
       -- we need more range...
     else 
       if (not Data['AA'].rocket_launcher and Data['AA'].enemy_far and not Data['AA'].enemy_close) then
+        Prints("extending range", 2)
+
         spellbook:cast_spell(e_spell_slot.q)
         Last_Q_swap_time = game.game_time
       else
         if (Data['AA'].rocket_launcher and Data['AA'].enemy_far and Data['AA'].enemy_close) then
+          Prints("q cast too close", 2)
+
           -- we need more attack speed...
           spellbook:cast_spell(e_spell_slot.q)
           Last_Q_swap_time = game.game_time
@@ -1672,9 +1670,9 @@ function Jinx:validateSplashMinionAndtarget()
         SplashableMinionIndex = nil
       elseif min_obj.is_visible == false then
         SplashableMinionIndex = nil
-      elseif min_obj.is_minion== false then
+      elseif min_obj.is_minion == false then
         SplashableMinionIndex = nil
-      elseif min_obj.is_targetable== false then
+      elseif min_obj.is_targetable == false then
         SplashableMinionIndex = nil
       end
       -- if SplashableMinionIndex then Prints("Splashable Minion valid", 1) else Prints("Splashable Minion removed", 1) end

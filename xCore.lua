@@ -1,3 +1,4 @@
+local LuaVersion = 1.5
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -6,13 +7,6 @@ if not _G.DreamPred then
 	require("DreamPred")
 end
   
-
-XCORE_VERSION = "9.1.5"
-XCORE_LUA_NAME = "xCore.lua"
-XCORE_REPO_BASE_URL = "https://raw.githubusercontent.com/xAIO-Slotted/xCore/main/"
-XCORE_REPO_SCRIPT_PATH = XCORE_REPO_BASE_URL .. XCORE_LUA_NAME
-
-
 --Ensuring that the library is downloaded:
 local file_name = "VectorMath.lua"
 if not file_manager:file_exists(file_name) then
@@ -1154,18 +1148,20 @@ local xHelper = class({
 
 		local range = 905
 		local turret = nil
-		for _, unit in ipairs(game.turrets) do
-		  if unit  and unit.is_enemy and not unit.is_dead then
-			local dist_away = vec3Util:distance(unit.origin, pos)
-			if dist_away < range then return true, unit end
-		  end
-		end
+		
 		if check_ally then
 			for _, unit in ipairs(game.turrets) do
-				if unit  and unit.is_ally and not unit.is_dead then
+				if unit  and not unit.is_enemy and not unit.is_dead then
 					local dist_away = vec3Util:distance(unit.origin, pos)
 					if dist_away < range then return true, unit end
 				end
+			end
+		else
+			for _, unit in ipairs(game.turrets) do
+			if unit  and unit.is_enemy and not unit.is_dead then
+				local dist_away = vec3Util:distance(unit.origin, pos)
+				if dist_away < range then return true, unit end
+			end
 			end
 		end
 
@@ -3210,7 +3206,6 @@ xCore_X = class({
 	init = function(self)
 		if coreAlone then if not menu:is_control_hidden(coreAlone) then menu:hide_control(coreAlone) end end
 		
-		local LuaVersion = 1.4
 		local LuaName = "xCore"
 		local lua_file_name = "xCore.lua"
 		local lua_url = "https://raw.githubusercontent.com/JayBuckley7/BruhwalkerLua/main/xCore.lua"
