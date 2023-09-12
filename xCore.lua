@@ -1,4 +1,4 @@
-local LuaVersion = 1.5
+local LuaVersion = 1.7
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -19,7 +19,7 @@ end
 local Prints = function(str, level)
 	if xCore_X then 
 		if xCore_X.debug then
-			xCore_X.debug:Print("opop", level)
+			xCore_X.debug:Print(str, level)
 		end
 	else
 		console:log("scoob?")
@@ -1604,12 +1604,16 @@ local database = class({
 					elseif distance <= 100 then
 						jinx_multiplier = 0.1
 					else
-						jinx_multiplier = 0.1 + 0.9 * ((distance - 100) / (1500 - 100))
+						local dist = distance
+						if dist > 1500 then dist = 1500 end
+						jinx_multiplier = ((distance) / (1500))
 					end
 
-					local dmg = (({ 300, 450, 600 })[level] + (1.5 * g_local.bonus_attack_damage) * jinx_multiplier) +
-						(({ 25, 30, 35 })[level] / 100 * self.xHelper:get_missing_hp(target))
+					local lvldmg = ({ 300, 450, 600 })[level]
+					local ad_bonus = (1.5 * g_local.bonus_attack_damage)
+					local missing_hp_bonus = ({ 25, 30, 35 })[level] / 100 * self.xHelper:get_missing_hp(target)
 
+					local dmg = (lvldmg + ad_bonus + missing_hp_bonus) * jinx_multiplier
 					return dmg
 				end
 			},
@@ -2745,6 +2749,7 @@ local visualizer = class({
 		end
 		if self.objects:can_cast(e_spell_slot.r) then
 			rdmg = self.damagelib:calc_spell_dmg("R", g_local, enemy, 1, self.objects:get_spell_level(e_spell_slot.r))
+			-- Prints("R Damage: " .. rdmg)
 		end
 		return aadmg, qdmg, wdmg, edmg, rdmg
 	end,
@@ -2885,9 +2890,10 @@ local debug = class({
 	end,
 
 	draw = function(self)
-		local pos = vec2:new((Res.x / 2) - 100, Res.y - 260)
-		local pos1 = vec2:new((Res.x / 2) - 100, Res.y - 290)
-		local pos2 = vec2:new((Res.x / 2) - 100, Res.y - 320)
+		
+		local pos =  vec2:new((menu:get_value(self.dbg_sec_x)) - 100, menu:get_value(self.dbg_sec_y) - 260)
+		local pos1 = vec2:new((menu:get_value(self.dbg_sec_x)) - 100, menu:get_value(self.dbg_sec_y) - 290)
+		local pos2 = vec2:new((menu:get_value(self.dbg_sec_x)) - 100, menu:get_value(self.dbg_sec_y) - 320)
 		if self.Last_dbg_msg_time == -1 then
 			renderer:draw_text_size(pos.x, pos.y, "bad game.game_time", 30, self.Colors.solid.white.r, self.Colors.solid.white.g, self.Colors.solid.white.b, self.Colors.solid.white.a)
 
