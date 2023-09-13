@@ -1,4 +1,4 @@
-local LuaVersion = 1.7
+local LuaVersion = 1.8
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -211,17 +211,21 @@ local chance_strings = {
  }
  local rates = { "slow", "instant", "very slow" }
 
-dancing = false
-state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
-top, mid, bot = nil, nil, nil
+local dancing = false
+local state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
+local top, mid, bot = nil, nil, nil
 
 
  --bw doesnt evaluate there menu cfgs to a number T_T
- function get_menu_val(cfg)
+ local function get_menu_val(cfg, give_value)
+	give_value = give_value or false
+	if give_value then
+	  return menu:get_value(cfg)
+	end
 	if menu:get_value(cfg) == 1 then
-	  return true
+	  return true, menu:get_value(cfg)
 	else
-	  return false
+	  return false, menu:get_value(cfg)
 	end
   end
 
@@ -774,7 +778,8 @@ local objects = class({
 	database = nil,
 	util = nil,
 
-	init = function(self, xHelper, math, database, util)
+	init = function(self, vec3_util, xHelper, math, database, util)
+		self.vec3_util = vec3_util
 		self.xHelper = xHelper
 		self.math = math
 		self.database = database
@@ -790,6 +795,28 @@ local objects = class({
 		else
 			return 0, nil
 		end
+	end,
+	get_enemy_turrets = function (self, range)
+		range = range or 99999
+		local enemy_turrets = {}
+		-- only return live turrets :D
+		for _, unit in ipairs(game.turrets) do
+			if unit and unit.is_enemy then
+				table.insert(enemy_turrets, unit)
+			end
+		end
+		return enemy_turrets
+	end,
+	get_ally_turrets = function (self, range)
+		range = range or 99999
+		local ally_turrets = {}
+		-- only return live turrets :D
+		for _, unit in ipairs(game.turrets) do
+			if unit and not unit.is_enemy then
+				table.insert(ally_turrets, unit)
+			end
+		end
+		return ally_turrets
 	end,
 	get_baseult_pos = function(self, unit)
 		if not unit then return nil end
@@ -2916,7 +2943,6 @@ local debug = class({
 --------------------------------------------------------------------------------
 
 
-
 local utils = class({
 	nav = nil,
 	XutilMenuCat = nil,
@@ -2924,7 +2950,7 @@ local utils = class({
 	top = nil,
 	mid = nil,
 	bot = nil,
-
+	
 	init = function(self,vec3_util, util, xHelper, math, objects, damagelib, debug, permashow, target_selector)
 		self.helper = xHelper
 		self.math = math
@@ -2938,19 +2964,65 @@ local utils = class({
 		-- -- Menus
 		if XutilMenuCat == nil then XutilMenuCat = menu:add_category("xUtils") end
 		self.nav = XutilMenuCat
-
+		
 		self.anti_turret = menu:add_subcategory("anti turret walker", self.nav)
-
+		
 		self.checkboxAntiTurretTechGlobal = menu:add_checkbox("deny turret walking in turret aggro (always)", self.anti_turret, 1)
 		self.checkboxAntiTurretTechHarass = menu:add_checkbox("^ in harass", self.anti_turret, 1)
 		self.checkboxAntiTurretTechCombo = menu:add_checkbox("^ in combo", self.anti_turret, 0)
-	
+		
 		self.anti_turret = menu:add_subcategory("Auto Dance (auto spacing)", self.nav)
 		self.checkboxAutoSpace = menu:add_checkbox("try auto dance(spacing beta)", self.anti_turret, 1)
-
+		
 		-- draw turret prio
-		self.checkboxDrawTurretPrio = menu:add_checkbox("draw turret prio", self.nav, 1)
-
+		-- Turret Visualization section
+		self.turretVisualization = menu:add_subcategory("Turret Visualization", self.nav)
+		self.checkboxTurretVizGlobal = menu:add_checkbox("Enable turret visualization", self.turretVisualization, 1)
+		self.sliderTurretVizCount = menu:add_slider("Number of minions to visualize (0 = all)", self.turretVisualization, 0, 10, 3)
+		self.checkboxTurretShotsRemaining = menu:add_checkbox("Draw turret shots remaining(soon)", self.turretVisualization, 0)
+		self.checkboxDrawPrepInstructions = menu:add_checkbox("Draw prep instructions(soon)", self.turretVisualization, 0)
+		self.labelSpellFarmConsideration = menu:add_label("Consider for spellfarm(soon)", self.turretVisualization)
+		self.checkboxCalcQ = menu:add_checkbox("Calc Q damage", self.turretVisualization, 0)
+		self.checkboxCalcW = menu:add_checkbox("Calc W damage", self.turretVisualization, 0)
+		self.checkboxCalcE = menu:add_checkbox("Calc E damage", self.turretVisualization, 0)
+		self.checkboxCalcR = menu:add_checkbox("Calc R damage", self.turretVisualization, 0)
+		
+	end,
+	visualize_turret_priority = function(self)
+		--print enter
+		if get_menu_val(self.checkboxTurretVizGlobal) then
+			local turrets = self.objects:get_ally_turrets(g_local.attack_range+350)
+			for _, turret in ipairs(turrets) do
+				if turret then
+				  local minions = self.objects:get_enemy_minions(860, turret.origin)
+				  if #minions > 0 then 
+					local sorted = self.objects:get_ordered_turret_targets(turret, minions)
+					local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
+					--- now lets only draw the first amount to show minions
+					for i, minion in ipairs(sorted) do
+					  if i <= amount_to_show or amount_to_show == 0 then
+						self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
+						self.vec3_util:drawText(i, minion.origin, self.util.Colors.solid.lightCyan, 30)
+					  end
+					end
+				  end
+				end
+			end
+		end
+	end,
+	draw = function(self)
+		if self.top and self.mid and self.bot and self.dancing then
+			self.vec3_util:drawCircleFull(self.top, self.util.Colors.solid.red, 35)
+			self.vec3_util:drawCircleFull(self.mid, self.util.Colors.solid.green, 35)
+			self.vec3_util:drawCircleFull(self.bot, self.util.Colors.solid.blue, 35)
+			-- draw a line from me to mid
+			self.vec3_util:drawLine(g_local.origin, self.mid, self.util.Colors.solid.green, 2)
+			self:clear()
+		end
+		
+		if get_menu_val(self.checkboxTurretVizGlobal) then
+			self:visualize_turret_priority()
+		end
 	end,
 	clear = function(self)
 		if self.dancing then
@@ -3138,38 +3210,6 @@ local utils = class({
 
 		return false
 		end,
-
-	draw = function (self)		
-		if self.top and self.mid and self.bot and self.dancing then
-			self.vec3_util:drawCircleFull(self.top, self.util.Colors.solid.red, 35)
-			self.vec3_util:drawCircleFull(self.mid, self.util.Colors.solid.green, 35)
-			self.vec3_util:drawCircleFull(self.bot, self.util.Colors.solid.blue, 35)
-			--draw a line from me to mid
-			self.vec3_util:drawLine(g_local.origin, self.mid, self.util.Colors.solid.green, 2)
-			self:clear()
-
-	  	end
-		-- if turret prio
-		if get_menu_val(self.checkboxDrawTurretPrio) then
-			for _, v in ipairs(game.turrets) do
-				local turret = v
-				if turret and not turret.is_enemy and self.vec3_util:distance(turret.origin, g_local.origin) < g_local.attack_range+350 then
-				  local minions = self.objects:get_enemy_minions(860, turret.origin)
-				  if #minions > 0 then 
-					local sorted = self.objects:get_ordered_turret_targets(turret, minions)
-					for i, minion in ipairs(sorted) do
-					  self.vec3_util:drawCircle(minion.origin, util.Colors.transparent.lightCyan, 50)
-					  self.vec3_util:drawText(i, minion.origin, util.Colors.solid.lightCyan, 30)
-					end
-				  end
-				end
-			  end
-		end
-		
-	end
-
-
-
 })
 
 
@@ -3182,8 +3222,6 @@ local function init_alone(xCore_X)
 	console:log("xCore: init_alone")
 	xCore_X:init()
 end
-
-
 	
 
 xCore_X = class({
@@ -3244,7 +3282,7 @@ xCore_X = class({
 		self.helper = xHelper:new(self.buffcache)
 		self.math = math:new(self.helper, self.buffcache)
 		self.database = database:new(self.helper)
-		self.objects = objects:new(self.helper, self.math, self.database, self.util)
+		self.objects = objects:new(self.vec3_util, self.helper, self.math, self.database, self.util)
 		self.damagelib = damagelib:new(self.helper, self.math, self.database, self.buffcache)
 		self.visualizer = visualizer:new(self.util, self.helper, self.math, self.objects, self.damagelib)
 		self.debug = debug:new(self.util)
