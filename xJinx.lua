@@ -35,11 +35,11 @@ MinionTable = {}
 Last_Q_swap_time = game.game_time
 Last_cast_time = game.game_time
 
-function Prints(str, level)
+local function Prints(str, level)
     core.debug:Print(str, level)
 end
 
-function get_menu_val(cfg)
+local function get_menu_val(cfg)
   if menu:get_value(cfg) == 1 then
     return true
   else
