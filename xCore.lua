@@ -209,11 +209,12 @@ local chance_strings = {
 	ClickProofToEnemies = 37,
 	Unkillable = 38
  }
+ 
  local rates = { "slow", "instant", "very slow" }
 
-local dancing = false
-local state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
-local top, mid, bot = nil, nil, nil
+ local dancing = false
+ local state = "atMiddle" -- can be "atTop", "atMiddle", or "atBottom"
+ local top, mid, bot = nil, nil, nil
 
 
  --bw doesnt evaluate there menu cfgs to a number T_T
@@ -313,6 +314,18 @@ local vec3Util = class({
 	print = function(self, point)
 		print("x: " .. point.x .. " y: " .. point.y .. " z: " .. point.z)
 	end,
+	add = function(self, v1, v2)
+		local x = v1.x + v2.x
+		local y = v1.y + v2.y
+		local z = v1.z + v2.z
+		return vec3.new(x, y, z)
+	end,
+	subtract = function(self, v1, v2)
+		local x = v1.x - v2.x
+		local y = v1.y - v2.y
+		local z = v1.z - v2.z
+		return vec3.new(x, y, z)
+	end,
 	extend = function (self, v1, v2, dist)
 		local dx = v2.x - v1.x
 		local dy = v2.y - v1.y
@@ -333,12 +346,6 @@ local vec3Util = class({
 		return ret
 		
 	end,
-	subtract = function(self, v1, v2)
-		local x = v1.x - v2.x
-		local y = v1.y - v2.y
-		local z = v1.z - v2.z
-		return vec3.new(x, y, z)
-	end,
 	rotate = function(self, origin, point, angle)
 		local angle = angle * (std_math.pi / 180)
 		local rotatedX = std_math.cos(angle) * (point.x - origin.x) - std_math.sin(angle) * (point.z - origin.z) + origin.x
@@ -349,7 +356,7 @@ local vec3Util = class({
 		local dx = v.x
 		local dy = v.y
 		local dz = v.z
-		local length = math.sqrt(dx * dx + dy * dy + dz * dz)
+		local length = xMath.sqrt(dx * dx + dy * dy + dz * dz)
 		
 		-- Check if length is zero to avoid division by zero
 		if length == 0 then
@@ -376,18 +383,15 @@ local vec3Util = class({
 		local distance_squared = dx*dx + dy*dy + dz*dz
 		return std_math.sqrt(distance_squared)
 	end,
-
 	translate = function(self, origin, offsetX, offsetZ)
 		local translatedX = origin.x + offsetX
 		local translatedZ = origin.z + offsetZ
 		return vec3.new(translatedX, origin.y, translatedZ)
 	end,
-
 	translateX = function(self, origin, offsetX)
 		local translatedX = origin.x + offsetX
 		return vec3.new(translatedX, origin.y, origin.z)
 	end,
-
 	translateZ = function(self, origin, offsetZ)
 		local translatedZ = origin.z + offsetZ
 		return vec3.new(origin.x, origin.y, translatedZ)
@@ -402,7 +406,6 @@ local vec3Util = class({
 
 		return {PointSegment = pointSegment, PointLine = pointLine, IsOnSegment = isOnSegment}
 	end,
-
 	is_colliding = function(self, start_pos, end_pos, target, width)
 		for i, enemy in pairs(game.players) do
 			if  enemy and enemy.is_enemy and enemy.is_alive and target.champ_name ~= enemy.champ_name then       
@@ -420,18 +423,15 @@ local vec3Util = class({
 	drawCircle = function(self, origin, color, radius)
 		renderer:draw_circle(origin.x, origin.y, origin.z, radius, color.r, color.g, color.b, color.a)
 	end,
-
 	drawCircleFull = function(self, origin, color, radius)
 		renderer:draw_circle_filled(origin.x, origin.y, origin.z, radius, color.r, color.g, color.b, color.a)
 	end,
-
 	drawLine = function(self, origin, destination, color, width)
 		local width = width or 5
 		local oxy = game:world_to_screen_2(origin.x, origin.y, origin.z)
 		local dxy = game:world_to_screen_2(destination.x, destination.y, destination.z) 
 		renderer:draw_line(oxy.x, oxy.y, dxy.x, dxy.y, width, color.r, color.g, color.b, color.a)
 	end,
-
 	drawBox = function(self, start_pos, end_pos, width, color, thickness)
 		-- Calculate the direction vector
 		local dir = vec3.new(end_pos.x - start_pos.x, 0, end_pos.z - start_pos.z)
@@ -486,9 +486,9 @@ local vec2Util = class({
 	end,
 
 	rotate = function(self, origin, point, angle)
-		local angle = angle * (math.pi / 180)
-		local rotatedX = math.cos(angle) * (point.x - origin.x) - math.sin(angle) * (point.y - origin.y) + origin.x
-		local rotatedY = math.sin(angle) * (point.x - origin.x) + math.cos(angle) * (point.y - origin.y) + origin.y
+		local angle = angle * (xMath.pi / 180)
+		local rotatedX = xMath.cos(angle) * (point.x - origin.x) - xMath.sin(angle) * (point.y - origin.y) + origin.x
+		local rotatedY = xMath.sin(angle) * (point.x - origin.x) + xMath.cos(angle) * (point.y - origin.y) + origin.y
 		return vec3.new(rotatedX, rotatedY)
 	end,
 
@@ -709,7 +709,7 @@ local util = class({
 
 --------------------------------------------------------------------------------
 
-local math = class({
+local xMath = class({
 	xHelper = nil,
 	buffcache = nil,
 
@@ -774,14 +774,14 @@ local math = class({
 
 local objects = class({
 	xHelper = nil,
-	math = nil,
+	xMath = nil,
 	database = nil,
 	util = nil,
 
-	init = function(self, vec3_util, xHelper, math, database, util)
+	init = function(self, vec3_util, xHelper, xMath, database, util)
 		self.vec3_util = vec3_util
 		self.xHelper = xHelper
-		self.math = math
+		self.xMath = xMath
 		self.database = database
 		self.util = util
 	end,
@@ -892,7 +892,7 @@ local objects = class({
 		for i, unit in ipairs(game.players) do
 			if  unit and unit.is_enemy then
 				if self.xHelper:is_alive(unit) and self.xHelper:is_valid(unit)and not self.xHelper:is_invincible(unit) then
-					if (range and self.math:dis_sq(position, unit.origin) <= range ^ 2 or self.math:in_aa_range(unit, true)) then
+					if (range and self.xMath:dis_sq(position, unit.origin) <= range ^ 2 or self.xMath:in_aa_range(unit, true)) then
 						table.insert(enemy_champs, unit)
 					end
 				end
@@ -905,7 +905,7 @@ local objects = class({
 		position = position or g_local.origin
 		local ally_champs = {}
 		for i, unit in ipairs(game.players) do
-			if unit and not unit.is_enemy and self.xHelper:is_alive(unit) and self.xHelper:is_valid(unit) and not self.xHelper:is_invincible(unit) and (range and self.math:dis_sq(position, unit.origin) <= range ^ 2 or self.math:in_aa_range(unit, true)) then
+			if unit and not unit.is_enemy and self.xHelper:is_alive(unit) and self.xHelper:is_valid(unit) and not self.xHelper:is_invincible(unit) and (range and self.xMath:dis_sq(position, unit.origin) <= range ^ 2 or self.xMath:in_aa_range(unit, true)) then
 				table.insert(ally_champs, unit)
 			end
 		end
@@ -1212,7 +1212,7 @@ local xHelper = class({
 
 local damagelib = class({
 	xHelper = nil,
-	math = nil,
+	xMath = nil,
 	database = nil,
 	buffcache = nil,
 
@@ -1288,15 +1288,32 @@ local damagelib = class({
 			args.raw_magical = args.raw_magical + damage
 		end
 	},
+	TURRET_DAMAGE_MODIFIERS = {
+		[2] = 0.45,  -- Melee
+		[1] = 0.70,  -- Caster
+		[3] = {
+			default = 0.14,  
+			-- You can expand this for different turret types if needed
+			-- type2 = 0.11,
+			-- type3 = 0.08,
+		}
+	},
 
-
-	init = function(self, xHelper, math, database, buffcache)
+	init = function(self, xHelper, xMath, database, buffcache)
 		self.xHelper = xHelper
-		self.math = math
+		self.xMath = xMath
 		self.database = database
 		self.buffcache = buffcache
 	end,
-
+	get_cumulative_turret_shots_to_kill = function(self, turret, sorted_minions)
+		local cumulativeShots = 0
+		for _, minion in ipairs(sorted_minions) do
+			local damageModifier = self:getTurretDamageModifier(minion)
+			local turretShotsRequired = math.ceil(minion.health / (minion.max_health * damageModifier))
+			cumulativeShots = cumulativeShots + turretShotsRequired
+		end
+		return cumulativeShots
+	end,
 	check_for_passives = function(self, args)
 		local source = args.source
 		local buff = self.buffcache:get_buff(source, "6672buff") -- Kraken Slayer
@@ -1348,7 +1365,6 @@ local damagelib = class({
 
 		args.raw_magical = args.raw_magical + damage
 	end,
-
 	calc_aa_dmg = function(self, source, target)
 		local idx = target.object_id
 		local name = source.champ_name
@@ -1473,6 +1489,21 @@ local damagelib = class({
 		end
 
 		return 0
+	end,
+	getTurretDamageModifier = function(self, minion)
+		if self.TURRET_DAMAGE_MODIFIERS[minion.minion_type] then
+			if type(self.TURRET_DAMAGE_MODIFIERS[minion.minion_type]) == "table" then
+				-- Assuming the minion is a siege minion. Adjust as needed.
+				return self.TURRET_DAMAGE_MODIFIERS[minion.minion_type].default
+			else
+				return self.TURRET_DAMAGE_MODIFIERS[minion.minion_type]
+			end
+		end
+		return 1  -- Default
+	end,
+	getShotsRequired = function(self, minion)
+		local modifier = self:getTurretDamageModifier(minion)
+		return math.ceil(minion.health / (minion.max_health * modifier))
 	end,
 
 })
@@ -1748,7 +1779,7 @@ end
 
 local target_selector = class({
 	xHelper = nil,
-	math = nil,
+	xMath = nil,
 	objects = nil,
 	damagelib = nil,
 
@@ -1774,11 +1805,11 @@ local target_selector = class({
 	lastForceChange = 0,
 	forceTargetMaxDistance = 240,
 
-	init = function(self, xHelper, math, objects, damagelib)
+	init = function(self, xHelper, xMath, objects, damagelib)
 
 		
 		self.xHelper = xHelper
-		self.math = math
+		self.xMath = xMath
 		self.objects = objects
 		self.damagelib = damagelib
 
@@ -2052,7 +2083,7 @@ local target_selector = class({
 			local target = self.TARGET_CACHE[range].enemies[i] or {}
 			local new_weight = {}
 
-			local d = self.math:dis_sq(g_local.origin, enemies[i].origin)
+			local d = self.xMath:dis_sq(g_local.origin, enemies[i].origin)
 			local w = 10000 / (1 + std_math.sqrt(d))
 			if not self.xHelper:is_melee(enemies[i]) then
 				w = w * menu:get_value(self.weight_dis) / 10
@@ -2506,7 +2537,7 @@ local visualizer = class({
 	Last_cast_time = game.game_time,
 	util = nil,
 	xHelper = nil,
-	math = nil,
+	xMath = nil,
 	objects = nil,
 	damagelib = nil,
 	add = XVisMenuCat,
@@ -2521,10 +2552,10 @@ local visualizer = class({
 	visualizer_visualize_r = nil,
 	visualizer_show_text = nil,
 
-	init = function(self, util, xHelper, math, objects, damagelib)
+	init = function(self, util, xHelper, xMath, objects, damagelib)
 		self.Last_cast_time = game.game_time
 		self.xHelper = xHelper
-		self.math = math
+		self.xMath = xMath
 		self.util = util
 		self.damagelib = damagelib
 		self.objects = objects
@@ -2951,9 +2982,9 @@ local utils = class({
 	mid = nil,
 	bot = nil,
 	
-	init = function(self,vec3_util, util, xHelper, math, objects, damagelib, debug, permashow, target_selector)
+	init = function(self,vec3_util, util, xHelper, xMath, objects, damagelib, debug, permashow, target_selector)
 		self.helper = xHelper
-		self.math = math
+		self.xMath = xMath
 		self.util = util
 		self.damagelib = damagelib
 		self.objects = objects
@@ -2979,8 +3010,8 @@ local utils = class({
 		self.turretVisualization = menu:add_subcategory("Turret Visualization", self.nav)
 		self.checkboxTurretVizGlobal = menu:add_checkbox("Enable turret visualization", self.turretVisualization, 1)
 		self.sliderTurretVizCount = menu:add_slider("Number of minions to visualize (0 = all)", self.turretVisualization, 0, 10, 3)
-		self.checkboxTurretShotsRemaining = menu:add_checkbox("Draw turret shots remaining(soon)", self.turretVisualization, 0)
-		self.checkboxDrawPrepInstructions = menu:add_checkbox("Draw prep instructions(soon)", self.turretVisualization, 0)
+		self.checkboxTurretShotsRemaining = menu:add_checkbox("Draw turret shots remaining", self.turretVisualization, 0)
+		self.checkboxDrawPrepInstructions = menu:add_checkbox("Draw prep instructions(almost!)", self.turretVisualization, 0)
 		self.labelSpellFarmConsideration = menu:add_label("Consider for spellfarm(soon)", self.turretVisualization)
 		self.checkboxCalcQ = menu:add_checkbox("Calc Q damage", self.turretVisualization, 0)
 		self.checkboxCalcW = menu:add_checkbox("Calc W damage", self.turretVisualization, 0)
@@ -2989,23 +3020,32 @@ local utils = class({
 		
 	end,
 	visualize_turret_priority = function(self)
-		--print enter
 		if get_menu_val(self.checkboxTurretVizGlobal) then
 			local turrets = self.objects:get_ally_turrets(g_local.attack_range+350)
 			for _, turret in ipairs(turrets) do
 				if turret then
-				  local minions = self.objects:get_enemy_minions(860, turret.origin)
-				  if #minions > 0 then 
-					local sorted = self.objects:get_ordered_turret_targets(turret, minions)
-					local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
-					--- now lets only draw the first amount to show minions
-					for i, minion in ipairs(sorted) do
-					  if i <= amount_to_show or amount_to_show == 0 then
-						self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
-						self.vec3_util:drawText(i, minion.origin, self.util.Colors.solid.lightCyan, 30)
-					  end
+					local minions = self.objects:get_enemy_minions(860, turret.origin)
+					if #minions > 0 then 
+						local sorted = self.objects:get_ordered_turret_targets(turret, minions)
+						local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
+						for i, minion in ipairs(sorted) do
+							if i <= amount_to_show or amount_to_show == 0 then
+								self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
+								self.vec3_util:drawText(i, minion.origin, self.util.Colors.solid.lightCyan, 30)
+								
+								if get_menu_val(self.checkboxTurretShotsRemaining) then
+									local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, {minion})
+									local shotText = cumulativeShots == 1 and "dying" or cumulativeShots .. " trt shots to kill"
+									self.vec3_util:drawText(shotText, self.vec3_util:add(minion.origin, vec3.new(0, 50, 0)), self.util.Colors.solid.red, 20)
+								end
+	
+								if get_menu_val(self.checkboxDrawPrepInstructions) then
+									local aa_position = self.vec3_util:add(minion.origin, vec3.new(0, -50, 0))
+									self.vec3_util:drawText("ima calc aa to kill here soon, promise", aa_position, self.util.Colors.solid.lightCyan, 20)
+								end
+							end
+						end
 					end
-				  end
 				end
 			end
 		end
@@ -3230,7 +3270,7 @@ xCore_X = class({
 	permashow = nil,
 	buffcache = nil,
 	helper = nil,
-	math = nil,
+	xMath = nil,
 	database = nil,
 	objects = nil,
 	damagelib = nil,
@@ -3280,22 +3320,20 @@ xCore_X = class({
 		self.permashow = permashow:new()
 		self.buffcache = buffcache:new()
 		self.helper = xHelper:new(self.buffcache)
-		self.math = math:new(self.helper, self.buffcache)
+		self.xMath = xMath:new(self.helper, self.buffcache)
 		self.database = database:new(self.helper)
-		self.objects = objects:new(self.vec3_util, self.helper, self.math, self.database, self.util)
-		self.damagelib = damagelib:new(self.helper, self.math, self.database, self.buffcache)
-		self.visualizer = visualizer:new(self.util, self.helper, self.math, self.objects, self.damagelib)
+		self.objects = objects:new(self.vec3_util, self.helper, self.xMath, self.database, self.util)
+		self.damagelib = damagelib:new(self.helper, self.xMath, self.database, self.buffcache)
+		self.visualizer = visualizer:new(self.util, self.helper, self.xMath, self.objects, self.damagelib)
 		self.debug = debug:new(self.util)
-		self.target_selector = target_selector:new(self.helper, self.math, self.objects, self.damagelib)
-		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.math, self.objects, self.damagelib,self.debug, self.permashow, self.target_selector)
-
+		self.target_selector = target_selector:new(self.helper, self.xMath, self.objects, self.damagelib)
+		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.xMath, self.objects, self.damagelib, self.debug, self.permashow, self.target_selector)
 
 		client:set_event_callback("on_tick_always",function() self.target_selector:tick() end)
 		client:set_event_callback("on_draw", function() self.permashow:draw() self.debug:draw() self.target_selector:draw() self.visualizer:draw() self.utils:draw() end)
 		client:set_event_callback("on_tick_always",function() self.permashow:tick() end)
 	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
 		self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
-
 
 		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
 		client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally() end)
@@ -3311,7 +3349,5 @@ if coreAlone == nil then
 	if XutilMenuCat == nil then XutilMenuCat = menu:add_category("xUtils") end
 	coreAlone = menu:add_button("load xCore", XutilMenuCat, function() init_alone(xCore_X) end, "tool_tip")  
 end
-
-
 
 return xCore_X
