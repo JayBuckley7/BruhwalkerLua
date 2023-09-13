@@ -1,4 +1,4 @@
-local LuaVersion = 1.5
+local LuaVersion = 1.6
 if not _G.DreamPred then
   require("DreamPred")
 end
