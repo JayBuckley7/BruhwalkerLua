@@ -1,4 +1,4 @@
-local LuaVersion = 1.8
+local LuaVersion = 1.9
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -230,6 +230,15 @@ local chance_strings = {
 	end
   end
 
+local function table_contains(tbl, value)
+	for _, v in ipairs(tbl) do
+		if v == value then
+			return true
+		end
+	end
+	return false
+end
+
  local function class(properties, ...)
     local cls = {}
     cls.__index = cls
@@ -296,9 +305,6 @@ local vec2 = class({
 -- Vec3 Utility
 
 --------------------------------------------------------------------------------
-
-
-
 
 --- @class vec3Util
 --- @field print fun(self:vec3Util, point:Vec3):nil
@@ -967,6 +973,15 @@ local objects = class({
 		end
 		return enemies
 	end,
+	is_valid_minion = function(self, minion,range)
+		local range = range or 99999
+		return minion and 
+			minion.is_minion and 
+			minion.is_lane_minion and 
+			minion.is_alive and 
+			minion.health > 0 and 
+			self.vec3_util:distance(g_local.origin, minion.origin) <= range
+	end,
 	count_enemy_minions = function(self, range, position)
 		position = position or g_local.origin
 		local mins = self:get_enemy_minions(range, position) or 0
@@ -1314,12 +1329,16 @@ local damagelib = class({
 		end
 		return cumulativeShots
 	end,
+	get_num_aa_to_kill = function(self, champion, minion)
+		local aa_dmg = self:calc_aa_dmg(champion, minion)
+		return math.ceil(minion.health / aa_dmg)
+	end,
 	check_for_passives = function(self, args)
 		local source = args.source
 		local buff = self.buffcache:get_buff(source, "6672buff") -- Kraken Slayer
 		if buff and buff.stacks == 3 then
 			args.true_damage = args.true_damage + 50 +
-				0.4 * source:get_bonus_attack_damage()
+				0.4 * source.bonus_attack_damage
 		end
 		if self.buffcache:has_buff(source, "3504Buff") then -- Ardent Censer
 			args.raw_magical = args.raw_magical + 4.12 + 0.88 * args.unit.level
@@ -1332,7 +1351,7 @@ local damagelib = class({
 
 		if self.buffcache:has_buff(source, "3508buff") then -- Essence Reaver
 			args.raw_physical = args.raw_physical + 0.4 *
-				source:get_bonus_attack_damage() + source.total_attack_damage
+				source.bonus_attack_damage + source.total_attack_damage
 		end
 
 		if self.buffcache:has_buff(source, "lichbane") then -- Lich Bane
@@ -1710,6 +1729,45 @@ local database = class({
 				end
 			},
 		},
+		caitlyn = {
+			{
+			  slot = "Q",
+			  stage = 1,
+			  damage_type = 1,
+			  damage = function(self, source, target, level)
+				return ({ 50, 90, 130, 170, 210 })[level] + 
+					({ 125, 145, 165, 185, 205 })[level] / 100 * source.total_attack_damage
+			  end
+			},
+			{
+			  slot = "W",
+			  stage = 1,
+			  damage_type = 1,
+			  damage = function(self, source, target, level)
+				return ({ 40, 85, 130, 175, 220 })[level] +
+					({ 40, 50, 60, 70, 80 })[level] / 100 * source.bonus_attack_damage
+			  end
+			},
+			{
+			  slot = "E",
+			  stage = 1,
+			  damage_type = 2,
+			  damage = function(self, source, target, level)
+				return ({ 80, 130, 180, 230, 280 })[level] +
+					0.8 * source.ability_power
+			  end
+			},
+			{
+			  slot = "R",
+			  stage = 1,
+			  damage_type = 1,
+			  damage = function(self, source, target, level)
+				return ({ 300, 525, 750 })[level] +
+					2.0 * source.bonus_attack_damage
+			  end
+			},
+		}
+		
 	},
 	add_champion_data = function(self, new_dmg_data)
 		for champ_name, dmg_data in pairs(new_dmg_data) do
@@ -2981,6 +3039,10 @@ local utils = class({
 	top = nil,
 	mid = nil,
 	bot = nil,
+	active_turret = nil,
+	focused_minions = {},
+	focus_minion_cache = {},
+
 	
 	init = function(self,vec3_util, util, xHelper, xMath, objects, damagelib, debug, permashow, target_selector)
 		self.helper = xHelper
@@ -3019,37 +3081,101 @@ local utils = class({
 		self.checkboxCalcR = menu:add_checkbox("Calc R damage", self.turretVisualization, 0)
 		
 	end,
-	visualize_turret_priority = function(self)
-		if get_menu_val(self.checkboxTurretVizGlobal) then
-			local turrets = self.objects:get_ally_turrets(g_local.attack_range+350)
-			for _, turret in ipairs(turrets) do
-				if turret then
-					local minions = self.objects:get_enemy_minions(860, turret.origin)
-					if #minions > 0 then 
-						local sorted = self.objects:get_ordered_turret_targets(turret, minions)
-						local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
-						for i, minion in ipairs(sorted) do
-							if i <= amount_to_show or amount_to_show == 0 then
-								self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
-								self.vec3_util:drawText(i, minion.origin, self.util.Colors.solid.lightCyan, 30)
-								
-								if get_menu_val(self.checkboxTurretShotsRemaining) then
-									local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, {minion})
-									local shotText = cumulativeShots == 1 and "dying" or cumulativeShots .. " trt shots to kill"
-									self.vec3_util:drawText(shotText, self.vec3_util:add(minion.origin, vec3.new(0, 50, 0)), self.util.Colors.solid.red, 20)
-								end
+	should_focus_minions = function(self)
+		local player_under_turret, turret_player = self:is_under_turret(g_local.origin, true)
+		local mouse_under_turret, turret_mouse = self:is_under_turret(game.mouse_pos, true)
 	
-								if get_menu_val(self.checkboxDrawPrepInstructions) then
-									local aa_position = self.vec3_util:add(minion.origin, vec3.new(0, -50, 0))
-									self.vec3_util:drawText("ima calc aa to kill here soon, promise", aa_position, self.util.Colors.solid.lightCyan, 20)
-								end
-							end
-						end
+		if player_under_turret then
+			return true, turret_player
+		elseif mouse_under_turret then
+			return true, turret_mouse
+		end
+		
+		return false, nil
+	end,
+	update_minions_to_focus = function(self)
+
+		--first we need to loop the focus minion cache
+		for i, minion_info in ipairs(self.focus_minion_cache) do
+			local minion = game:get_object(minion_info.index) --nill check is_minion is_lane_minion is_alive .hp >0 vec3 dist < 900
+			if not minion or not minion.is_minion or not minion.is_lane_minion or not minion.is_alive or minion.hp <= 0 or self.vec3_util:distance(g_local.origin, minion.origin) > 900 then
+				table.remove(self.focus_minion_cache, i)
+			end
+		end
+
+		-- damn wait im not sure if this works, I was gonna loops the cache and remove the dead ones add any new ones and update all their info but im not sure thats how tables works..4
+	end,
+	strategize_minions = function(self)
+		local retained_indices = {}
+	
+		-- Remove any bad minions from the cache
+		for i=#self.focus_minion_cache, 1, -1 do
+			local minion_info = self.focus_minion_cache[i]
+			local minion = game:get_object(minion_info.index)
+	
+			if not self.objects:is_valid_minion(self, minion) then
+				table.remove(self.focus_minion_cache, i)
+			else
+				table.insert(retained_indices, minion_info.index)
+			end
+		end
+	
+		-- Add new focused minions to the cache
+		for _, focused_minion in ipairs(self.focused_minions) do
+			if not table_contains(retained_indices, focused_minion.index) then
+				local new_minion_info = {
+					index = focused_minion.index,
+					type = nil,
+					hp = nil,
+				}
+				table.insert(self.focus_minion_cache, new_minion_info)
+			end
+		end
+	-- 		local sorted = self.objects:get_ordered_turret_targets(turret, self.focused_minions)
+	--      local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, sorted)
+		-- Update the details for each minion in the cache
+		for _, minion_info in ipairs(self.focus_minion_cache) do
+			local minion = game:get_object(minion_info.index)
+			if minion then
+				minion_info.type = minion.type
+				minion_info.hp = minion.hp
+				minion_info.aa_to_kill = self.damagelib:get_num_aa_to_kill(g_local, minion)
+				minion_info.cumulative_shots = self.damagelib:get_cumulative_turret_shots_to_kill(self.active_turret, {minion})
+				minion_info.plan = ""
+			end
+		end
+	end,
+	visualize_turret_priority = function(self)
+		if get_menu_val(self.checkboxTurretVizGlobal) and self.active_turret and self.focused_minions and #self.focused_minions > 0 then
+			local turret = self.active_turret
+			local sorted = self.objects:get_ordered_turret_targets(turret, self.focused_minions)
+			local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, sorted)
+			local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
+	
+			for i, minion in ipairs(sorted) do
+				if i <= amount_to_show or amount_to_show == 0 then
+					self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
+	
+					local order_priority_position = self.vec3_util:add(minion.origin, vec3.new(-30, 0, 0))
+					self.vec3_util:drawText(i, order_priority_position, self.util.Colors.solid.lightCyan, 30)
+	
+					if get_menu_val(self.checkboxTurretShotsRemaining) then
+						local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, {minion})
+						local shotTextPosition = self.vec3_util:add(minion.origin, vec3.new(0, (cumulativeShots == 1) and 10 or -10, 0))
+						local shotText = cumulativeShots == 1 and "dying" or cumulativeShots .. " trt shots to kill"
+						self.vec3_util:drawText(shotText, shotTextPosition, self.util.Colors.solid.red, 20)
+					end
+	
+					if get_menu_val(self.checkboxDrawPrepInstructions) then
+						local num_attacks_needed = self.damagelib:get_num_aa_to_kill(g_local, minion)
+						local aa_position = self.vec3_util:add(minion.origin, vec3.new(0, -50, 0))
+						self.vec3_util:drawText(num_attacks_needed .. " aa to kill", aa_position, self.util.Colors.solid.lightCyan, 20)
 					end
 				end
 			end
 		end
 	end,
+	
 	draw = function(self)
 		if self.top and self.mid and self.bot and self.dancing then
 			self.vec3_util:drawCircleFull(self.top, self.util.Colors.solid.red, 35)
@@ -3329,15 +3455,17 @@ xCore_X = class({
 		self.target_selector = target_selector:new(self.helper, self.xMath, self.objects, self.damagelib)
 		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.xMath, self.objects, self.damagelib, self.debug, self.permashow, self.target_selector)
 
-		client:set_event_callback("on_tick_always",function() self.target_selector:tick() end)
+		client:set_event_callback("on_tick_always",function() self.target_selector:tick() self.permashow:tick() end)
+	
 		client:set_event_callback("on_draw", function() self.permashow:draw() self.debug:draw() self.target_selector:draw() self.visualizer:draw() self.utils:draw() end)
-		client:set_event_callback("on_tick_always",function() self.permashow:tick() end)
-	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
-		self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
-
+		
+	
 		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
 		client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally() end)
+		client:set_event_callback("on_game_update", function () self.utils:update_minions_to_focus() end)
 		
+	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
+		self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
 
 
 	end,
