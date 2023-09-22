@@ -1,4 +1,4 @@
-local LuaVersion = 1.9
+local LuaVersion = 2.0
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -876,8 +876,7 @@ local objects = class({
 		end
 	
 		return sorted_minions
-	end
-	,
+	end,
 	get_bounding_radius = function(self, unit)
 		return unit.bounding_radius or 45
 	end,
@@ -1320,12 +1319,15 @@ local damagelib = class({
 		self.database = database
 		self.buffcache = buffcache
 	end,
+	get_turret_shots_to_kill_minion = function(self, minion)
+		local damageModifier = self:getTurretDamageModifier(minion)
+		local turretShotsRequired = math.ceil(minion.health / (minion.max_health * damageModifier))
+		return turretShotsRequired
+	end,
 	get_cumulative_turret_shots_to_kill = function(self, turret, sorted_minions)
 		local cumulativeShots = 0
 		for _, minion in ipairs(sorted_minions) do
-			local damageModifier = self:getTurretDamageModifier(minion)
-			local turretShotsRequired = math.ceil(minion.health / (minion.max_health * damageModifier))
-			cumulativeShots = cumulativeShots + turretShotsRequired
+			cumulativeShots = cumulativeShots + self:get_turret_shots_to_kill_minion(minion)
 		end
 		return cumulativeShots
 	end,
@@ -3041,7 +3043,6 @@ local utils = class({
 	bot = nil,
 	active_turret = nil,
 	focused_minions = {},
-	focus_minion_cache = {},
 
 	
 	init = function(self,vec3_util, util, xHelper, xMath, objects, damagelib, debug, permashow, target_selector)
@@ -3082,8 +3083,8 @@ local utils = class({
 		
 	end,
 	should_focus_minions = function(self)
-		local player_under_turret, turret_player = self:is_under_turret(g_local.origin, true)
-		local mouse_under_turret, turret_mouse = self:is_under_turret(game.mouse_pos, true)
+		local player_under_turret, turret_player = xHelper:is_under_turret(g_local.origin, true)
+		local mouse_under_turret, turret_mouse = xHelper:is_under_turret(game.mouse_pos, true)
 	
 		if player_under_turret then
 			return true, turret_player
@@ -3093,66 +3094,114 @@ local utils = class({
 		
 		return false, nil
 	end,
-	update_minions_to_focus = function(self)
+	sort_focused_minions_by_turret_prio = function(self)
+		local turret_prio_list = {}
 
-		--first we need to loop the focus minion cache
-		for i, minion_info in ipairs(self.focus_minion_cache) do
-			local minion = game:get_object(minion_info.index) --nill check is_minion is_lane_minion is_alive .hp >0 vec3 dist < 900
-			if not minion or not minion.is_minion or not minion.is_lane_minion or not minion.is_alive or minion.hp <= 0 or self.vec3_util:distance(g_local.origin, minion.origin) > 900 then
-				table.remove(self.focus_minion_cache, i)
+
+		-- Custom sort function
+		table.sort(turret_prio_list, function(a, b)
+			if a.prio == b.prio then
+				return a.distance < b.distance
 			end
+			return a.prio < b.prio
+		end)
+	
+		-- Extracting the sorted minions from the list
+		local sorted_minions = {}
+		for _, entry in ipairs(turret_prio_list) do
+			table.insert(sorted_minions, entry.minion)
 		end
-
-		-- damn wait im not sure if this works, I was gonna loops the cache and remove the dead ones add any new ones and update all their info but im not sure thats how tables works..4
+	
+		return sorted_minions
 	end,
-	strategize_minions = function(self)
+
+	strategize_minions = function (self)
+		-- this does nothing! -- 
+		
+	end,
+	update_focused_minions = function(self)
 		local retained_indices = {}
-	
-		-- Remove any bad minions from the cache
-		for i=#self.focus_minion_cache, 1, -1 do
-			local minion_info = self.focus_minion_cache[i]
-			local minion = game:get_object(minion_info.index)
-	
-			if not self.objects:is_valid_minion(self, minion) then
-				table.remove(self.focus_minion_cache, i)
-			else
-				table.insert(retained_indices, minion_info.index)
+		local priority = {
+			[3] = 1,  -- Siege Minions
+			[2] = 2,  -- Melee Minions
+			[1] = 3   -- Ranged Minions
+			-- If Super Minions have a different priority, adjust here.
+			-- Currently, Super Minions (4) will be at the end due to the default sorting mechanism.
+		}
+		-- validate the fast list, clear out old dead minions
+		
+		local should_focus_minions, turret = self:should_focus_minions()
+		self.active_turret = turret
+		if should_focus_minions and turret then 
+			for i=#self.focused_minions, 1, -1 do
+				local minion_info = self.focused_minions[i]
+				local minion = game:get_object(minion_info.object_id)
+		
+				if not self.objects:is_valid_minion(self, minion) then
+					table.remove(self.focused_minions, i)
+				else
+					table.insert(retained_indices, minion_info.index)
+				end
 			end
-		end
-	
-		-- Add new focused minions to the cache
-		for _, focused_minion in ipairs(self.focused_minions) do
-			if not table_contains(retained_indices, focused_minion.index) then
-				local new_minion_info = {
-					index = focused_minion.index,
-					type = nil,
-					hp = nil,
-				}
-				table.insert(self.focus_minion_cache, new_minion_info)
+
+			local new_mins = self.objects:get_enemy_minions(1000, turret.origin)
+
+			-- add any minions that need to go on the fast list from the slow list
+			for _, new_min in ipairs(new_mins) do
+				if not table_contains(retained_indices, new_min.object_id) then
+					local new_minion_info = {
+						object_id = new_min.object_id,
+					}
+					table.insert(self.focused_minions, new_minion_info)
+				end
 			end
-		end
-	-- 		local sorted = self.objects:get_ordered_turret_targets(turret, self.focused_minions)
-	--      local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, sorted)
-		-- Update the details for each minion in the cache
-		for _, minion_info in ipairs(self.focus_minion_cache) do
-			local minion = game:get_object(minion_info.index)
-			if minion then
-				minion_info.type = minion.type
-				minion_info.hp = minion.hp
-				minion_info.aa_to_kill = self.damagelib:get_num_aa_to_kill(g_local, minion)
-				minion_info.cumulative_shots = self.damagelib:get_cumulative_turret_shots_to_kill(self.active_turret, {minion})
-				minion_info.plan = ""
+
+
+			-- now the fast list is up to date we can update all the properties on it
+			for _, minion_info in ipairs(self.focused_minions) do
+				local minion = game:get_object(minion_info.object_id)
+				if minion then
+					minion_info.minion = minion
+					minion_info.hp = minion.health 
+					minion_info.aa_to_kill = self.damagelib:get_num_aa_to_kill(g_local, minion)
+					minion_info.type = minion.minion_type
+					minion_info.prio = priority[minion.minion_type] or 4  -- defaults to 4 (lowest priority) if minion_type not in priority table
+					minion_info.dist = self.vec3_util:distance(self.active_turret.origin, minion.origin)
+				end
 			end
+
+			-- now sort it...
+			table.sort(self.focused_minions, function(a, b)
+				if a.prio == b.prio then
+					return a.dist < b.dist
+				end
+				return a.prio < b.prio
+			end)
+
+			-- -- now we do the cumulative :dizzy_face:
+			local turret_shot_count = 0
+			for _, minion_info in ipairs(self.focused_minions) do
+				local minion = minion_info.minion
+				if minion then
+					turret_shot_count = turret_shot_count + self.damagelib:get_turret_shots_to_kill_minion(minion)
+					minion_info.cumulativeShots = turret_shot_count
+				end
+			end
+			-- do more!
+		else
+			self.active_turret = nil
+			self.focused_minions = {}
 		end
+
+		self.strategize_minions()
 	end,
 	visualize_turret_priority = function(self)
 		if get_menu_val(self.checkboxTurretVizGlobal) and self.active_turret and self.focused_minions and #self.focused_minions > 0 then
 			local turret = self.active_turret
-			local sorted = self.objects:get_ordered_turret_targets(turret, self.focused_minions)
-			local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, sorted)
 			local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
 	
-			for i, minion in ipairs(sorted) do
+			for i, minion_info in ipairs(self.focused_minions) do
+				local minion = minion_info.minion
 				if i <= amount_to_show or amount_to_show == 0 then
 					self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
 	
@@ -3160,14 +3209,14 @@ local utils = class({
 					self.vec3_util:drawText(i, order_priority_position, self.util.Colors.solid.lightCyan, 30)
 	
 					if get_menu_val(self.checkboxTurretShotsRemaining) then
-						local cumulativeShots = self.damagelib:get_cumulative_turret_shots_to_kill(turret, {minion})
+						local cumulativeShots = minion_info.cumulativeShots
 						local shotTextPosition = self.vec3_util:add(minion.origin, vec3.new(0, (cumulativeShots == 1) and 10 or -10, 0))
 						local shotText = cumulativeShots == 1 and "dying" or cumulativeShots .. " trt shots to kill"
 						self.vec3_util:drawText(shotText, shotTextPosition, self.util.Colors.solid.red, 20)
 					end
 	
 					if get_menu_val(self.checkboxDrawPrepInstructions) then
-						local num_attacks_needed = self.damagelib:get_num_aa_to_kill(g_local, minion)
+						local num_attacks_needed = minion_info.aa_to_kill
 						local aa_position = self.vec3_util:add(minion.origin, vec3.new(0, -50, 0))
 						self.vec3_util:drawText(num_attacks_needed .. " aa to kill", aa_position, self.util.Colors.solid.lightCyan, 20)
 					end
@@ -3461,8 +3510,8 @@ xCore_X = class({
 		
 	
 		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
-		client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally() end)
-		client:set_event_callback("on_game_update", function () self.utils:update_minions_to_focus() end)
+		client:set_event_callback("on_game_update", function (...) self.utils:update_focused_minions(...) end)
+		client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally(...) end)
 		
 	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
 		self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
