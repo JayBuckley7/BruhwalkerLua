@@ -1,4 +1,5 @@
-local LuaVersion = 1.6
+local LuaVersion = 1.7
+-- test?
 if not _G.DreamPred then
   require("DreamPred")
 end
@@ -191,7 +192,15 @@ function Jinx:new()
     return obj
 end
 
+
 function Jinx:ToggleTS()
+  if self.first_tick == nil then print("first jinx tick") self.first_tick = game.game_time return false end
+  if game.game_time - self.first_tick  < 3 then 
+    Prints("toggle rtejected", 1) 
+    self.first_tick = game.game_time 
+    return false
+  end
+
   local currVal = core.target_selector:TOGGLE_STATUS()
   if currVal == 0 then
     Prints("swapping to xTS",1)
@@ -229,7 +238,7 @@ function Jinx:add_jmenus()
       draw = menu:add_subcategory("drawings", self.navigation),
       }
       self.sections = sections
-      -- self.TS = DreamTS(sections.Taget_Selector, {Damage = DreamTS.Damages.AD})
+      self.TS = DreamTS(sections.Taget_Selector, {Damage = DreamTS.Damages.AD})
       menu:hide_sub_category(sections.Taget_Selector)
 
 
@@ -411,6 +420,11 @@ function Jinx:init()
     client:set_event_callback("on_teleport", function(...) self:ProcessRecall(...) end)
     client:set_event_callback("on_dash", function(...) self:on_dash(...) end)
     
+    if core.target_selector:GET_STATUS() then 
+      print("custom ts: true") 
+    else 
+      print("custom ts: false") 
+    end
 
 
 end
@@ -593,34 +607,31 @@ function Jinx:Get_target(spell_data)
               end
             end
           end
+
+          if target == nil then
+            Prints("no target", 4)
+          end
+          --set orbwalker target 
+          if target then 
+            Prints("attemtp set orb tgt ", 4)
+            DynastyOrb:SetTarget(target)
+            Prints("attemted set orb tgt ", 4)
+          end
+      
         end
       end
     else 
       -- print("nabbing targets and pred")
       local dream_target,dream_pred = nil,nil
+
       if self.TS then 
         dream_target,dream_pred = self.TS:GetTarget(spell_data, g_local) 
+        target = dream_target
+        pred = dream_pred
       end
-      -- print("nabbed")
-      target = dream_target
-      pred = dream_pred
 
-      -- if w_targets and #w_targets > 0 then
-      --   target = w_targets[0]
-      -- end
-      
     end--   target = features.target_selector:get_default_target() 
   
-    if target == nil then
-      Prints("no target", 4)
-    end
-    --set orbwalker target
-    Prints("attemtp set orb tgt ", 4)
-    if target then 
-      DynastyOrb:SetTarget(target)
-    end
-    Prints("attemted set orb tgt ", 4)
-
     return target,pred
   end
 
@@ -1711,11 +1722,12 @@ end
 function Jinx:Splash_harass()
   Prints("splash harass in", 4)
   if get_menu_val(self.checkboxJinxSplashHarass) == false then return false end
+  -- 
   -- if features.orbwalker:is_in_attack() or features.evade:is_active() or not core.objects:can_cast(e_spell_slot.q) then return false end
   local target = self:Get_target(Data['AA'])
-  if target == nil then return false end
+  if target == nil then  SplashableTargetIndex = nil return false end
   SplashableTargetIndex = target.object_id
-  Prints("sh obtained splash index: " .. tostring(SplashableTargetIndex), 5)
+  Prints("sh obtained splash index: " .. tostring(SplashableTargetIndex), 4)
   
 
   self:validateSplashMinionAndtarget()
@@ -1768,14 +1780,14 @@ end
 function Jinx:show_splash_harass()
   Prints("show splash harass", 4)
   if SplashableTargetIndex then
-
     local tgt = game:get_object(SplashableTargetIndex)
     if tgt then
       Prints("splash champ", 4)
-
+      
       -- self:get_harass_minions_near(SplashabletargetIndex, 250)
       -- -- circle the target
       core.vec3_util:drawCircle(tgt.origin, Colors.solid.red, 235)
+      Prints("drawing red on .. " .. #MinionTable, 2)
       if MinionTable and #MinionTable > 0 then
         --Prints("splash?", 2)
         for ii, alive in ipairs(MinionTable) do
@@ -1794,7 +1806,7 @@ function Jinx:show_splash_harass()
         end
       end
     end
-  end
+  else Prints("no splashable target") end
   if SplashableMinionIndex then
     -- Prints("draw minion", 3)
 

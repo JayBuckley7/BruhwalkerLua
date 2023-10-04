@@ -1,4 +1,4 @@
-local LuaVersion = 2.0
+local LuaVersion = 2.1
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -1906,10 +1906,11 @@ local target_selector = class({
 		self.lastForceChange = game.game_time
 	end,
 
-	GET_STATUS = function(self,new_state)
+	GET_STATUS = function(self)
 		return get_menu_val(self.ts_enabled)
 	end,
 	TOGGLE_STATUS = function(self,new_state)
+		print("toggle called")
 		new_state = new_state or nil
 		local control_id = self.ts_enabled
 		local was_enabled = self:GET_STATUS()
@@ -2218,6 +2219,7 @@ local target_selector = class({
 	end,
 
 	force_target = function(self)
+		-- print("force target enter")
 
 		if menu:get_value(self.focus_target) and self:GET_STATUS() and game:is_key_down(e_key.lbutton) and game.game_time - self.lastForceChange >= 0.3 then
 			local target = nil
@@ -2292,7 +2294,8 @@ local target_selector = class({
 	end,
 
 	tick = function(self)
-		if not menu:get_value(self.ts_enabled) then return end
+		if not self:GET_STATUS() then return end
+		-- print("custom ts is:" .. tostring(self:GET_STATUS()))
 		self:force_target() 
 		self:update_forced_target()
 		self:get_main_target()
@@ -3511,10 +3514,10 @@ xCore_X = class({
 	
 		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
 		client:set_event_callback("on_game_update", function (...) self.utils:update_focused_minions(...) end)
-		client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally(...) end)
+		-- client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally(...) end)
 		
 	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
-		self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
+		-- self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
 
 
 	end,
