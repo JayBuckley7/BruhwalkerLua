@@ -1,4 +1,4 @@
-local LuaVersion = 2.1
+local LuaVersion = 2.2
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -1147,6 +1147,7 @@ local xHelper = class({
 			unit.is_targetable
 			and not unit:has_buff("sionpassivezombie")
 			and unit.origin ~= nil
+			and unit.health > 0
 
 		-- Prints("checking alive: " .. tostring(unit.object_name))
 		-- Prints("valid: " ..tostring( unit.is_valid))
@@ -2954,6 +2955,10 @@ local visualizer = class({
 
 --------------------------------------------------------------------------------
 
+
+GLOBAL_WATCH_1 = "scooby"
+GLOBAL_WATCH_2 = "doo"
+
 local debug = class({
 	nav = XVisMenuCat,
 	util = nil,
@@ -3020,13 +3025,22 @@ local debug = class({
 
 			return false
 		end                                                -- skip bad time
-
+		
+		-- if GLOBAL_WATCH_1 and GLOBAL_WATCH_1 ~= "" then
+		-- 	renderer:draw_text_size(250, Res.y - 350, GLOBAL_WATCH_1, 30, 255, 255, 255, 255)
+		-- end
+		-- if GLOBAL_WATCH_2 and GLOBAL_WATCH_2 ~= "" then
+		-- 	renderer:draw_text_size(250, Res.y - 380, GLOBAL_WATCH_2, 30, 255, 255, 255, 255)
+		-- end
 		if game.game_time - self.Last_dbg_msg_time >= 10 then return end -- fade out
 
 		renderer:draw_text_size(pos.x, Res.y - 260, self.LastMsg, 30, 255, 255, 255, 255)
 		renderer:draw_text_size(pos1.x, Res.y - 290, self.LastMsg1, 30, 255, 255, 255, 255)
 		renderer:draw_text_size(pos2.x, Res.y - 320, self.LastMsg2, 30, 255, 255, 255, 255)
 		-- console:log("x: " .. pos2.x .. " y:" .. Res.y)
+		
+
+		
 	end
 
 })

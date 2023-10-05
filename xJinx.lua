@@ -1,4 +1,4 @@
-local LuaVersion = 1.7
+local LuaVersion = 1.8
 -- test?
 if not _G.DreamPred then
   require("DreamPred")
@@ -1688,6 +1688,8 @@ function Jinx:validateSplashMinionAndtarget()
       end
       -- if SplashableMinionIndex then Prints("Splashable Minion valid", 1) else Prints("Splashable Minion removed", 1) end
     end
+  else
+    SplashableMinionIndex = nil
   end
   Prints("validateSplashMinionAndtarget out: ", 4)
 end
@@ -1712,6 +1714,7 @@ function Jinx:findSplashableMinion()
 
             Prints("bing! idx is minions is at " .. core.vec3_util:distance(g_local.origin, minion.origin), 4)
             SplashableMinionIndex = minion.object_id
+            GLOBAL_WATCH_2 = minion.object_name or ""
           end
         end
       end
@@ -1727,6 +1730,7 @@ function Jinx:Splash_harass()
   local target = self:Get_target(Data['AA'])
   if target == nil then  SplashableTargetIndex = nil return false end
   SplashableTargetIndex = target.object_id
+  GLOBAL_WATCH_1 = target.object_name or ""
   Prints("sh obtained splash index: " .. tostring(SplashableTargetIndex), 4)
   
 
@@ -1759,11 +1763,11 @@ function Jinx:Splash_harass()
                       spellbook:cast_spell(e_spell_slot.q)
                       -- Last_Q_swap_time = game.game_time
                     end
-                    if orbwalker:can_attack()  then
+                    local mode = combo:get_mode()
+                    if orbwalker:can_attack() and mode == Modes.Harass_key then
                       Prints("sending extendo attack to " .. min_obj.object_name, 5)
                       orbwalker:attack_target(min_obj)
                       Prints("back from extendo Q to " .. min_obj.object_name, 5)
-
                     end
                   end
               end
@@ -1787,7 +1791,7 @@ function Jinx:show_splash_harass()
       -- self:get_harass_minions_near(SplashabletargetIndex, 250)
       -- -- circle the target
       core.vec3_util:drawCircle(tgt.origin, Colors.solid.red, 235)
-      Prints("drawing red on .. " .. #MinionTable, 2)
+      Prints("drawing red on .. " .. tgt.object_name, 2)
       if MinionTable and #MinionTable > 0 then
         --Prints("splash?", 2)
         for ii, alive in ipairs(MinionTable) do
