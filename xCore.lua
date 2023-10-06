@@ -1,4 +1,4 @@
-local LuaVersion = 2.2
+local LuaVersion = 2.3
 require("PKDamageLib")
 if not _G.DynastyOrb then
 	require("DynastyOrb")
@@ -264,6 +264,77 @@ end
     return cls
 end
 
+
+--------------------------------------------------------------------------------
+-- jobject
+--------------------------------------------------------------------------------
+
+--- @class jobject
+local jobject = class({
+	object_id = -1,
+	name = 0,
+
+	is_auto_attacking = false,
+	is_winding_up = false,
+	was_winding_up = false,
+	state_changed = false,
+	next_attack_at = 99999999,
+	last_attack = 99999999,
+	time_till_next_attack = 99999999,
+	origin = vec3.new(0,0,0),
+
+	init = function(self, object)
+		if object then
+			self.object_id = object.object_id
+		end
+	end,
+	get_object = function(self)
+		if self.object_id == -1 then return nil end
+		return game:get_object(self.object_id)
+	end,
+	get_delay = function(self)
+		local self_object = self:get_object()
+		local basic_attack_data = self_object:get_basic_attack_data()
+		local delay = basic_attack_data.attack_cast_delay + basic_attack_data.attack_delay
+		return self_object.attack_delay
+	end,
+	reset = function(self,object)
+		print("lost turret id")
+		self.object_id = object.object_id
+		self.is_auto_attacking = false
+		self.is_winding_up = false
+		self.was_winding_up = false
+		self.state_changed = false
+		self.next_attack_at = 99999999
+		self.last_attack = 99999999
+		self.time_till_next_attack = 99999999
+		self.origin = vec3.new(0,0,0)
+	end,
+	update = function (self,object)
+		object = object or self:get_object()
+		if self.object_id ~= object.object_id then
+			self:reset(object)
+		end
+		self.origin = object.origin
+		self.is_auto_attacking = object.is_auto_attacking
+		self.is_winding_up = object.is_winding_up
+		-- bullet fired just now, start counting
+		if self.is_auto_attacking and self.is_winding_up then
+			-- print("attack was now ")
+			self.last_attack = game.game_time
+			-- print("last attack is now " .. tostring(self.last_attack))
+		end
+
+		local delay = self:get_delay()
+		-- print("time:: " .. tostring(game.game_time) .. " delay is: " .. tostring(delay))
+		-- print("last atk: " .. tostring(self.last_attack) .. " delay is: " .. tostring(delay))
+		self.next_attack_at = self.last_attack + delay
+		-- print(" next attack:" .. tostring(self.next_attack_at))
+		self.time_till_next_attack = self.next_attack_at - game.game_time
+		-- print(" time till: " .. tostring(self.time_till_next_attack))
+	end,
+
+})
 
 
 --------------------------------------------------------------------------------
@@ -3035,8 +3106,8 @@ local debug = class({
 		if game.game_time - self.Last_dbg_msg_time >= 10 then return end -- fade out
 
 		renderer:draw_text_size(pos.x, Res.y - 260, self.LastMsg, 30, 255, 255, 255, 255)
-		renderer:draw_text_size(pos1.x, Res.y - 290, self.LastMsg1, 30, 255, 255, 255, 255)
-		renderer:draw_text_size(pos2.x, Res.y - 320, self.LastMsg2, 30, 255, 255, 255, 255)
+		-- renderer:draw_text_size(pos1.x, Res.y - 290, self.LastMsg1, 30, 255, 255, 255, 255)
+		-- renderer:draw_text_size(pos2.x, Res.y - 320, self.LastMsg2, 30, 255, 255, 255, 255)
 		-- console:log("x: " .. pos2.x .. " y:" .. Res.y)
 		
 
@@ -3091,6 +3162,9 @@ local utils = class({
 		self.checkboxTurretVizGlobal = menu:add_checkbox("Enable turret visualization", self.turretVisualization, 1)
 		self.sliderTurretVizCount = menu:add_slider("Number of minions to visualize (0 = all)", self.turretVisualization, 0, 10, 3)
 		self.checkboxTurretShotsRemaining = menu:add_checkbox("Draw turret shots remaining", self.turretVisualization, 0)
+		self.checkboxTurretRange = menu:add_checkbox("Draw allied turret range", self.turretVisualization, 0)
+		--draw time till turret fired
+		self.checkboxTurretTimeTillAttack = menu:add_checkbox("Draw time till turret fires", self.turretVisualization, 0)
 		self.checkboxDrawPrepInstructions = menu:add_checkbox("Draw prep instructions(almost!)", self.turretVisualization, 0)
 		self.labelSpellFarmConsideration = menu:add_label("Consider for spellfarm(soon)", self.turretVisualization)
 		self.checkboxCalcQ = menu:add_checkbox("Calc Q damage", self.turretVisualization, 0)
@@ -3148,8 +3222,12 @@ local utils = class({
 		-- validate the fast list, clear out old dead minions
 		
 		local should_focus_minions, turret = self:should_focus_minions()
-		self.active_turret = turret
+		if turret and (not self.active_turret or (self.active_turret and self.active_turret.object_id ~= turret.object_id)) then
+			self.active_turret = jobject:new(turret)
+		end
+		
 		if should_focus_minions and turret then 
+			self.active_turret:update()
 			for i=#self.focused_minions, 1, -1 do
 				local minion_info = self.focused_minions[i]
 				local minion = game:get_object(minion_info.object_id)
@@ -3214,12 +3292,18 @@ local utils = class({
 	end,
 	visualize_turret_priority = function(self)
 		if get_menu_val(self.checkboxTurretVizGlobal) and self.active_turret and self.focused_minions and #self.focused_minions > 0 then
-			local turret = self.active_turret
-			local amount_to_show = get_menu_val(self.sliderTurretVizCount, true)
-	
+
 			for i, minion_info in ipairs(self.focused_minions) do
 				local minion = minion_info.minion
+				local amount_to_show = menu:get_value(self.sliderTurretVizCount)
 				if i <= amount_to_show or amount_to_show == 0 then
+					-- if i is one then lets draw a line from turret to minion one
+					if i == 1 then
+						local hpbar = self.active_turret:get_object().health_bar
+						local base_position = self.active_turret.origin -- hpbar.pos
+						local below_turret_pos = self.vec3_util:add(base_position, vec3.new(0, 0, 0))
+						self.vec3_util:drawLine(below_turret_pos, minion.origin, self.util.Colors.transparent.lightCyan, 2)
+					end
 					self.vec3_util:drawCircle(minion.origin, self.util.Colors.transparent.lightCyan, 50)
 	
 					local order_priority_position = self.vec3_util:add(minion.origin, vec3.new(-30, 0, 0))
@@ -3237,7 +3321,30 @@ local utils = class({
 						local aa_position = self.vec3_util:add(minion.origin, vec3.new(0, -50, 0))
 						self.vec3_util:drawText(num_attacks_needed .. " aa to kill", aa_position, self.util.Colors.solid.lightCyan, 20)
 					end
+					-- lets draw time till atk on the turret
+					if get_menu_val(self.checkboxTurretTimeTillAttack) then
+						local time_till_next_attack = self.active_turret.time_till_next_attack
+						local tuncated = std_math.floor(time_till_next_attack * 100) / 100
+						local text = "fire in: " .. tuncated
+						--i actually want position to be left of origin by 50
+						local pos = self.vec3_util:add(self.active_turret.origin, vec3.new(-50, 0, 0))
+						--calcualte my attack time based on attack delay and cast delay
+						local me = jobject:new(g_local)
+						me:update()
+						local my_delay = me:get_delay()
+						-- can we fade the color from green to red?
+						local clr = self.util.Colors.solid.red
+						if my_delay < time_till_next_attack then
+							clr = self.util.Colors.solid.green
+						end
+						
+
+						self.vec3_util:drawText(text, pos, clr, 20)
+					end
 				end
+			end
+			if get_menu_val(self.checkboxTurretRange) then
+				self.vec3_util:drawCircle(self.active_turret.origin, self.util.Colors.transparent.lightCyan, 875)
 			end
 		end
 	end,
@@ -3266,6 +3373,12 @@ local utils = class({
 			orbwalker:enable_move()
 			orbwalker:enable_auto_attacks()
 		end
+	end,
+	rando_ass_shit = function (self, object, active_spell)
+		print("cast by: " ..object.object_name )
+		-- if self.active_turret and target == self.active_turret then 
+		-- 	print("yeah hi")
+		-- else print("no cast was at " .. tostring(taget.object_name)) end
 	end,
 	deny_turret_harass= function(self, pos)
 		Prints("DennyTurretInHarass", 4)
@@ -3522,13 +3635,13 @@ xCore_X = class({
 		self.utils = utils:new(self.vec3_util, self.util, self.helper, self.xMath, self.objects, self.damagelib, self.debug, self.permashow, self.target_selector)
 
 		client:set_event_callback("on_tick_always",function() self.target_selector:tick() self.permashow:tick() end)
-	
 		client:set_event_callback("on_draw", function() self.permashow:draw() self.debug:draw() self.target_selector:draw() self.visualizer:draw() self.utils:draw() end)
-		
 	
 		_G.DynastyOrb:AddCallback("OnMovement", function(...) self.utils:deny_turret_harass(...) end)
 		client:set_event_callback("on_game_update", function (...) self.utils:update_focused_minions(...) end)
 		-- client:set_event_callback("on_tick_always", function(...) self.utils:position_optimally(...) end)
+		client:set_event_callback("on_active_spell", function (...) self.utils:rando_ass_shit(...) end)
+			
 		
 	    self.permashow:register("Anti turret walker", "Anti turret walker", "N", true, self.utils.checkboxAntiTurretTechGlobal)
 		-- self.permashow:register("Use AutoSpace [Beta]", "Use AutoSpace [Beta]", "control", true, self.utils.checkboxAutoSpace)
